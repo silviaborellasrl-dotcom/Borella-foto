@@ -1,0 +1,246 @@
+import requests
+import sys
+import os
+import tempfile
+import openpyxl
+from datetime import datetime
+from io import BytesIO
+
+class ImageSearchAPITester:
+    def __init__(self, base_url="https://image-fetch-system.preview.emergentagent.com"):
+        self.base_url = base_url
+        self.api_url = f"{base_url}/api"
+        self.tests_run = 0
+        self.tests_passed = 0
+
+    def run_test(self, name, method, endpoint, expected_status, data=None, files=None, params=None):
+        """Run a single API test"""
+        url = f"{self.api_url}/{endpoint}" if endpoint else self.api_url
+        headers = {}
+        
+        # Don't set Content-Type for multipart/form-data requests
+        if not files:
+            headers['Content-Type'] = 'application/json'
+
+        self.tests_run += 1
+        print(f"\n🔍 Testing {name}...")
+        print(f"   URL: {url}")
+        
+        try:
+            if method == 'GET':
+                response = requests.get(url, headers=headers, params=params)
+            elif method == 'POST':
+                if files:
+                    response = requests.post(url, data=data, files=files)
+                else:
+                    response = requests.post(url, json=data, headers=headers)
+
+            success = response.status_code == expected_status
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    print(f"   Response: {response_data}")
+                    return True, response_data
+                except:
+                    print(f"   Response: Binary data ({len(response.content)} bytes)")
+                    return True, response.content
+            else:
+                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"   Error: {error_data}")
+                except:
+                    print(f"   Error: {response.text}")
+                return False, {}
+
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            return False, {}
+
+    def test_root_endpoint(self):
+        """Test root API endpoint"""
+        return self.run_test("Root Endpoint", "GET", "", 200)
+
+    def test_single_search_valid(self):
+        """Test single search with a test code"""
+        test_codes = ["TEST123", "PROD001", "ABC123", "SAMPLE"]
+        
+        for code in test_codes:
+            success, response = self.run_test(
+                f"Single Search - {code}",
+                "POST",
+                "search-single",
+                200,
+                data={"code": code}
+            )
+            
+            if success and response.get('found'):
+                print(f"   ✅ Found image for {code}: {response.get('image_url')}")
+                return True, response
+            elif success:
+                print(f"   ℹ️  No image found for {code} (expected)")
+        
+        return True, {"code": "TEST123", "found": False}
+
+    def test_single_search_empty(self):
+        """Test single search with empty code"""
+        return self.run_test(
+            "Single Search - Empty Code",
+            "POST",
+            "search-single",
+            400,
+            data={"code": ""}
+        )
+
+    def test_download_image_invalid(self):
+        """Test download with invalid URL"""
+        return self.run_test(
+            "Download Image - Invalid URL",
+            "GET",
+            "download-image",
+            404,
+            params={
+                "url": "https://invalid-url.com/test.jpg",
+                "filename": "test.jpg"
+            }
+        )
+
+    def create_test_excel_file(self, codes):
+        """Create a test Excel file with product codes"""
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        
+        # Add header
+        sheet.cell(row=1, column=1, value="CODICE")
+        
+        # Add codes
+        for i, code in enumerate(codes, start=2):
+            sheet.cell(row=i, column=1, value=code)
+        
+        # Save to BytesIO
+        excel_buffer = BytesIO()
+        workbook.save(excel_buffer)
+        excel_buffer.seek(0)
+        
+        return excel_buffer
+
+    def test_batch_search_valid(self):
+        """Test batch search with Excel file"""
+        test_codes = ["TEST123", "PROD001", "ABC123", "SAMPLE", "DEMO"]
+        excel_file = self.create_test_excel_file(test_codes)
+        
+        files = {'file': ('test_codes.xlsx', excel_file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+        
+        return self.run_test(
+            "Batch Search - Valid Excel",
+            "POST",
+            "search-batch",
+            200,
+            files=files
+        )
+
+    def test_batch_search_invalid_file(self):
+        """Test batch search with invalid file"""
+        # Create a text file instead of Excel
+        text_content = "This is not an Excel file"
+        files = {'file': ('test.txt', BytesIO(text_content.encode()), 'text/plain')}
+        
+        return self.run_test(
+            "Batch Search - Invalid File",
+            "POST",
+            "search-batch",
+            400,
+            files=files
+        )
+
+    def test_batch_search_no_codice_column(self):
+        """Test batch search with Excel file without CODICE column"""
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        
+        # Add wrong header
+        sheet.cell(row=1, column=1, value="PRODUCT")
+        sheet.cell(row=2, column=1, value="TEST123")
+        
+        excel_buffer = BytesIO()
+        workbook.save(excel_buffer)
+        excel_buffer.seek(0)
+        
+        files = {'file': ('no_codice.xlsx', excel_buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+        
+        return self.run_test(
+            "Batch Search - No CODICE Column",
+            "POST",
+            "search-batch",
+            400,
+            files=files
+        )
+
+    def test_download_batch_zip(self):
+        """Test batch ZIP download"""
+        test_codes = ["TEST123", "PROD001", "ABC123"]
+        excel_file = self.create_test_excel_file(test_codes)
+        
+        files = {'file': ('test_codes.xlsx', excel_file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+        
+        success, response = self.run_test(
+            "Download Batch ZIP",
+            "POST",
+            "download-batch-zip",
+            200,  # Expecting 200 even if no images found, or 404 if none found
+            files=files
+        )
+        
+        # The endpoint might return 404 if no images are found, which is also valid
+        if not success:
+            # Try again expecting 404
+            success_404, _ = self.run_test(
+                "Download Batch ZIP - No Images",
+                "POST", 
+                "download-batch-zip",
+                404,
+                files=files
+            )
+            return success_404, {}
+        
+        return success, response
+
+def main():
+    print("🚀 Starting Image Search API Tests")
+    print("=" * 50)
+    
+    tester = ImageSearchAPITester()
+    
+    # Test all endpoints
+    tests = [
+        tester.test_root_endpoint,
+        tester.test_single_search_valid,
+        tester.test_single_search_empty,
+        tester.test_download_image_invalid,
+        tester.test_batch_search_valid,
+        tester.test_batch_search_invalid_file,
+        tester.test_batch_search_no_codice_column,
+        tester.test_download_batch_zip
+    ]
+    
+    for test in tests:
+        try:
+            test()
+        except Exception as e:
+            print(f"❌ Test failed with exception: {str(e)}")
+    
+    # Print final results
+    print("\n" + "=" * 50)
+    print(f"📊 Final Results: {tester.tests_passed}/{tester.tests_run} tests passed")
+    
+    if tester.tests_passed == tester.tests_run:
+        print("🎉 All tests passed!")
+        return 0
+    else:
+        print(f"⚠️  {tester.tests_run - tester.tests_passed} tests failed")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
