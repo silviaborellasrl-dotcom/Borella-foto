@@ -58,9 +58,18 @@ class SearchRequest(BaseModel):
 # Helper function to check if image exists
 async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
     try:
-        # Try with a simple GET request with timeout
+        # Add browser-like headers to avoid 403 Forbidden
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,it;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
         timeout = aiohttp.ClientTimeout(total=10)
-        async with session.get(url, timeout=timeout, allow_redirects=True) as response:
+        async with session.head(url, headers=headers, timeout=timeout, allow_redirects=True) as response:
             logging.info(f"Checking {url}: Status {response.status}")
             return response.status == 200
     except asyncio.TimeoutError:
