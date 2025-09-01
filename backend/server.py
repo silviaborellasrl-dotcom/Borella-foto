@@ -113,37 +113,63 @@ def generate_file_patterns(code: str) -> List[str]:
     
     return patterns
 
-# Function to find image for a product code with smart search
+# Function to find image for a product code with intelligent pattern matching
 async def find_product_image(session: aiohttp.ClientSession, code: str) -> ImageSearchResult:
     code = code.strip()
     
-    # Common filename patterns observed from the example
-    common_patterns = [
-        # Exact match
+    # Based on real examples from the user:
+    # 24369 - BEST TISANIERA.jpg
+    # 13025 - 13026 ROSSO.jpg  
+    # 1458- VEGA SET 6 COPPETTE ARLECCHIN.jpg
+    # 19500 SIRIO-OLIERA-INOX-5-PEZZI-J12504.jpg
+    # 21929 - 21930 - 21931 - 21932 - 22899 - 21933 - 21934 2022 2.JPG
+    # 2210 (4).png
+    
+    # Generate search patterns based on observed naming conventions
+    search_patterns = [
+        # Exact match (simple case)
         f"{code}",
-        # Pattern from example: "117 - 118 - 1124 - 1415 panarea (1).jpg"
-        f"{code} - 118 - 1124 - 1415 panarea (1)",
-        f"{code} - 118 - 1124 - 1415 panarea",
-        # Other common patterns
-        f"{code} panarea (1)",
-        f"{code} panarea",
-        f"{code} - panarea (1)",
-        f"{code} - panarea",
-        # Multiple variations with different numbers
-        f"{code} - 118 - 1124 panarea (1)",
-        f"{code} - 118 panarea (1)",
-        # Try with other common suffixes
+        
+        # Pattern: CODE - DESCRIPTION 
+        f"{code} - ",
+        
+        # Pattern: CODE- DESCRIPTION (no space before dash)
+        f"{code}- ",
+        f"{code}-",
+        
+        # Pattern: CODE DESCRIPTION (space separator)
+        f"{code} ",
+        
+        # Pattern: CODE (NUMBER) - for variants
         f"{code} (1)",
-        f"{code} (2)",
-        f"{code} - (1)",
-        # Common product naming patterns
-        f"{code} - 119 - 1125 - 1416 panarea (1)",  # Pattern variation
+        f"{code} (2)", 
+        f"{code} (3)",
+        f"{code} (4)",
+        f"{code} (5)",
+        
+        # Pattern: CODE - OTHER_CODES - DESCRIPTION
+        # We'll try some common multi-code patterns
+        f"{code} - \\d+ ",  # CODE - ANOTHER_CODE format
+        f"{code} - \\d+ - ",  # CODE - CODE - MORE
     ]
     
-    for format_ext in SUPPORTED_FORMATS:
-        for pattern in common_patterns:
-            # URL encode the filename to handle spaces and special characters
-            encoded_filename = urllib.parse.quote(f"{pattern}{format_ext}")
+    # All supported formats including case variations
+    format_extensions = [".jpg", ".JPG", ".png", ".PNG", ".webp", ".WEBP", ".tif", ".TIF"]
+    
+    for format_ext in format_extensions:
+        # First, try simple patterns
+        simple_patterns = [
+            f"{code}{format_ext}",
+            f"{code} -{format_ext}",  # Missing space case
+            f"{code}- {format_ext}",  # Space after dash
+            f"{code} (1){format_ext}",
+            f"{code} (2){format_ext}",
+            f"{code} (3){format_ext}",
+            f"{code} (4){format_ext}",
+        ]
+        
+        for pattern in simple_patterns:
+            encoded_filename = urllib.parse.quote(pattern)
             image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
             
             if await check_image_exists(session, image_url):
@@ -153,6 +179,46 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                     image_url=image_url,
                     format=format_ext
                 )
+        
+        # Try more complex patterns with common descriptions
+        # Based on the examples, generate likely filenames
+        complex_patterns = []
+        
+        # Generate patterns for multi-code files (since one image can have multiple codes)
+        # Try combinations with other common codes
+        for second_code in range(int(code) + 1, int(code) + 10) if code.isdigit() else []:
+            complex_patterns.extend([
+                f"{code} - {second_code}{format_ext}",
+                f"{code} - {second_code} ",  # Will be completed with common endings
+            ])
+        
+        # Try patterns with common product naming
+        common_endings = [
+            " ROSSO", " NERO", " BIANCO", " BLU",
+            " SET", " VEGA", " SIRIO", " PANAREA",
+            " TISANIERA", " OLIERA", " INOX",
+            " 2022", " 2023", " 2024"
+        ]
+        
+        for ending in common_endings:
+            test_patterns = [
+                f"{code}{ending}{format_ext}",
+                f"{code} -{ending}{format_ext}",
+                f"{code} {ending}{format_ext}",
+                f"{code}- {ending}{format_ext}",
+            ]
+            
+            for pattern in test_patterns:
+                encoded_filename = urllib.parse.quote(pattern)
+                image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
+                
+                if await check_image_exists(session, image_url):
+                    return ImageSearchResult(
+                        code=code,
+                        found=True,
+                        image_url=image_url,
+                        format=format_ext
+                    )
     
     return ImageSearchResult(
         code=code,
