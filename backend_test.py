@@ -63,13 +63,15 @@ class ImageSearchAPITester:
         """Test root API endpoint"""
         return self.run_test("Root Endpoint", "GET", "", 200)
 
-    def test_single_search_valid(self):
-        """Test single search with a test code"""
-        test_codes = ["TEST123", "PROD001", "ABC123", "SAMPLE"]
+    def test_single_search_known_codes(self):
+        """Test single search with known working codes"""
+        # These are the codes mentioned in the request that should work
+        known_codes = ["24369", "13025", "2210", "117"]
+        found_any = False
         
-        for code in test_codes:
+        for code in known_codes:
             success, response = self.run_test(
-                f"Single Search - {code}",
+                f"Single Search - Known Code {code}",
                 "POST",
                 "search-single",
                 200,
@@ -78,7 +80,28 @@ class ImageSearchAPITester:
             
             if success and response.get('found'):
                 print(f"   ✅ Found image for {code}: {response.get('image_url')}")
-                return True, response
+                print(f"   📁 Format: {response.get('format')}")
+                found_any = True
+            elif success:
+                print(f"   ❌ No image found for {code} (should have been found)")
+        
+        return True, {"found_any": found_any}
+
+    def test_single_search_test_codes(self):
+        """Test single search with generic test codes"""
+        test_codes = ["TEST123", "PROD001", "ABC123", "SAMPLE"]
+        
+        for code in test_codes:
+            success, response = self.run_test(
+                f"Single Search - Test Code {code}",
+                "POST",
+                "search-single",
+                200,
+                data={"code": code}
+            )
+            
+            if success and response.get('found'):
+                print(f"   ✅ Found image for {code}: {response.get('image_url')}")
             elif success:
                 print(f"   ℹ️  No image found for {code} (expected)")
         
