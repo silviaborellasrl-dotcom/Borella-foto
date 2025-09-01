@@ -79,19 +79,50 @@ async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
         logging.error(f"Error checking {url}: {str(e)}")
         return False
 
-# Function to find image for a product code
+# Function to find image for a product code with fuzzy search
 async def find_product_image(session: aiohttp.ClientSession, code: str) -> ImageSearchResult:
     code = code.strip().upper()
     
+    # Try different naming patterns for the product code
+    search_patterns = [
+        # Exact match
+        f"{code}",
+        # With spaces and dashes (common patterns from the example)
+        f"{code} -",
+        f"{code}-",
+        f"- {code} -",
+        f"- {code}",
+        # With common prefixes/suffixes
+        f"{code} ",
+        f" {code}",
+        # Common variations
+        f"{code.lower()}",
+        f"{code} (1)",
+        f"{code} (2)",
+    ]
+    
     for format_ext in SUPPORTED_FORMATS:
-        image_url = f"{IMAGE_BASE_URL}/{code}{format_ext}"
-        if await check_image_exists(session, image_url):
-            return ImageSearchResult(
-                code=code,
-                found=True,
-                image_url=image_url,
-                format=format_ext
-            )
+        for pattern in search_patterns:
+            # Since we can't list directory, we'll try common naming conventions
+            # This is a simplified approach - in reality, we'd need a file index
+            possible_names = [
+                f"{pattern}{format_ext}",
+                f"{pattern} panarea{format_ext}",
+                f"{pattern} - panarea{format_ext}",
+                f"{pattern} panarea (1){format_ext}",
+                f"{pattern} - 118 - 1124 - 1415 panarea (1){format_ext}",
+                # Add more common patterns based on real file names
+            ]
+            
+            for filename in possible_names:
+                image_url = f"{IMAGE_BASE_URL}/{filename}"
+                if await check_image_exists(session, image_url):
+                    return ImageSearchResult(
+                        code=code,
+                        found=True,
+                        image_url=image_url,
+                        format=format_ext
+                    )
     
     return ImageSearchResult(
         code=code,
