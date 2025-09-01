@@ -149,15 +149,30 @@ class ImageSearchAPITester:
         
         return excel_buffer
 
-    def test_batch_search_valid(self):
-        """Test batch search with Excel file"""
+    def test_batch_search_known_codes(self):
+        """Test batch search with known working codes"""
+        known_codes = ["24369", "13025", "2210", "117"]
+        excel_file = self.create_test_excel_file(known_codes)
+        
+        files = {'file': ('known_codes.xlsx', excel_file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+        
+        return self.run_test(
+            "Batch Search - Known Codes",
+            "POST",
+            "search-batch",
+            200,
+            files=files
+        )
+
+    def test_batch_search_test_codes(self):
+        """Test batch search with test codes"""
         test_codes = ["TEST123", "PROD001", "ABC123", "SAMPLE", "DEMO"]
         excel_file = self.create_test_excel_file(test_codes)
         
         files = {'file': ('test_codes.xlsx', excel_file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
         
         return self.run_test(
-            "Batch Search - Valid Excel",
+            "Batch Search - Test Codes",
             "POST",
             "search-batch",
             200,
