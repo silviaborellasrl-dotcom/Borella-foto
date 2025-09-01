@@ -58,9 +58,12 @@ class SearchRequest(BaseModel):
 # Helper function to check if image exists
 async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
     try:
-        async with session.head(url) as response:
-            return response.status == 200
-    except:
+        # Use GET with range header instead of HEAD for better compatibility
+        headers = {'Range': 'bytes=0-1023'}  # Only get first 1KB
+        async with session.get(url, headers=headers) as response:
+            return response.status in [200, 206]  # 206 for partial content
+    except Exception as e:
+        logging.error(f"Error checking {url}: {str(e)}")
         return False
 
 # Function to find image for a product code
