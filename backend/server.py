@@ -168,10 +168,13 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                         f"{prev_code1} - {prev_code2} - {code} - 12277 CAFFETTIERA-KELLY{format_ext}",
                         # Specific pattern for 1282 - 1283 - 1196 - 1200.jpg
                         f"{code} - {next_code1} - 1196 - 1200{format_ext}",
+                        # Specific pattern for 1117 - 1118 - 1124.jpg
+                        f"{code} - {next_code1} - 1124{format_ext}",
                         # General patterns
                         f"{prev_code2} - {code} - {next_code1}{format_ext}",
                         f"{prev_code1} - {prev_code2} - {code}{format_ext}",
                         f"{code} - {next_code1} - {next_code2}{format_ext}",
+                        f"{code} - {next_code1} - 1124{format_ext}",  # General pattern for X - X+1 - 1124
                     ]
                     
                     for pattern in multi_code_patterns:
