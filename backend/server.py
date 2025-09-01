@@ -138,14 +138,37 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                 f"{code} - 118 - 1124 - 1415 panarea (1){format_ext}",
             ]
             
-            # If numeric code, try one adjacent code pattern (most common case)
-            if code.isdigit() and check_count < max_checks - 2:
+            # If numeric code, try adjacent code patterns (both before and after)
+            if code.isdigit() and check_count < max_checks - 3:
                 base_code = int(code)
+                
+                # Pattern: CODE - NEXT_CODE (code at beginning)
                 next_code = base_code + 1
                 high_probability_patterns.extend([
                     f"{code} - {next_code}{format_ext}",
                     f"{code} - {next_code} ROSSO{format_ext}",
                 ])
+                
+                # Pattern: PREV_CODES - CODE - NEXT_CODES (code in middle)
+                # Based on real example: 22492 - 22493 - 22494 - 22495 - 22496 PORTAFOTO-ALTEA.jpg
+                if base_code >= 2:
+                    prev_code1 = base_code - 2
+                    prev_code2 = base_code - 1
+                    next_code1 = base_code + 1
+                    next_code2 = base_code + 2
+                    
+                    # Try the exact pattern found in real data
+                    multi_code_patterns = [
+                        f"{prev_code1} - {prev_code2} - {code} - {next_code1} - {next_code2} PORTAFOTO-ALTEA{format_ext}",
+                        f"{prev_code2} - {code} - {next_code1}{format_ext}",
+                        f"{prev_code1} - {prev_code2} - {code}{format_ext}",
+                    ]
+                    
+                    for pattern in multi_code_patterns:
+                        if check_count >= max_checks:
+                            break
+                        high_probability_patterns.append(pattern)
+                        check_count += 1
             
             for pattern in high_probability_patterns:
                 if check_count >= max_checks:
