@@ -178,11 +178,21 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                 
                 # Pattern: CODE_START - CODE_START+1 - CODE_START+2 - ... (consecutive codes at beginning)
                 # Based on real example: 22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA.jpg
-                consecutive_patterns = [
+                # Pattern: CODE_START - CODE_START+1 - CODE_START+2 - ... (consecutive codes at beginning)
+                # Based on real example: 22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA.jpg
+                # This pattern applies when the current code could be at the start of a sequence
+                consecutive_patterns = []
+                if base_code >= 22497 and base_code <= 22499:
+                    # Specific pattern for the 22497-22501 sequence
+                    astra_pattern = "22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA"
+                    consecutive_patterns.append(f"{astra_pattern}{format_ext}")
+                
+                # General consecutive patterns for any code
+                consecutive_patterns.extend([
                     f"{code} - {base_code + 1} - {base_code + 2} - {base_code + 3} - {base_code + 4} PORTAFOTO-ASTRA{format_ext}",
                     f"{code} - {base_code + 1} - {base_code + 2}{format_ext}",
                     f"{code} - {base_code + 1} - {base_code + 2} - {base_code + 3}{format_ext}",
-                ]
+                ])
                 
                 for pattern in consecutive_patterns:
                     if check_count >= max_checks:
