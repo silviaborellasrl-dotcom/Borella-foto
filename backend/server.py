@@ -79,50 +79,80 @@ async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
         logging.error(f"Error checking {url}: {str(e)}")
         return False
 
-# Function to find image for a product code with fuzzy search
-async def find_product_image(session: aiohttp.ClientSession, code: str) -> ImageSearchResult:
+import re
+import urllib.parse
+
+# Function to generate possible file patterns for a product code
+def generate_file_patterns(code: str) -> List[str]:
+    """Generate possible filename patterns for a given product code"""
     code = code.strip().upper()
     
-    # Try different naming patterns for the product code
-    search_patterns = [
-        # Exact match
+    patterns = [
+        # Basic patterns
+        code,
         f"{code}",
-        # With spaces and dashes (common patterns from the example)
+        # Patterns with common separators
         f"{code} -",
         f"{code}-",
-        f"- {code} -",
         f"- {code}",
-        # With common prefixes/suffixes
+        f"- {code} -",
+        # Patterns with spaces
         f"{code} ",
         f" {code}",
-        # Common variations
-        f"{code.lower()}",
+        f" {code} ",
+        # Patterns with common product naming
+        f"{code} panarea",
+        f"{code} - panarea",
+        f"{code} panarea (1)",
+        f"{code} - panarea (1)",
+        # Multiple codes pattern (based on the example: 117 - 118 - 1124 - 1415)
+        f"{code} - \\d+ - \\d+ - \\d+",
+        f"{code} - \\d+ - \\d+ - \\d+ panarea",
+        f"{code} - \\d+ - \\d+ - \\d+ panarea \\(\\d+\\)",
+    ]
+    
+    return patterns
+
+# Function to find image for a product code with smart search
+async def find_product_image(session: aiohttp.ClientSession, code: str) -> ImageSearchResult:
+    code = code.strip()
+    
+    # Common filename patterns observed from the example
+    common_patterns = [
+        # Exact match
+        f"{code}",
+        # Pattern from example: "117 - 118 - 1124 - 1415 panarea (1).jpg"
+        f"{code} - 118 - 1124 - 1415 panarea (1)",
+        f"{code} - 118 - 1124 - 1415 panarea",
+        # Other common patterns
+        f"{code} panarea (1)",
+        f"{code} panarea",
+        f"{code} - panarea (1)",
+        f"{code} - panarea",
+        # Multiple variations with different numbers
+        f"{code} - 118 - 1124 panarea (1)",
+        f"{code} - 118 panarea (1)",
+        # Try with other common suffixes
         f"{code} (1)",
         f"{code} (2)",
+        f"{code} - (1)",
+        # Common product naming patterns
+        f"{code} - 119 - 1125 - 1416 panarea (1)",  # Pattern variation
     ]
     
     for format_ext in SUPPORTED_FORMATS:
-        for pattern in search_patterns:
-            # Since we can't list directory, we'll try common naming conventions
-            # This is a simplified approach - in reality, we'd need a file index
-            possible_names = [
-                f"{pattern}{format_ext}",
-                f"{pattern} panarea{format_ext}",
-                f"{pattern} - panarea{format_ext}",
-                f"{pattern} panarea (1){format_ext}",
-                f"{pattern} - 118 - 1124 - 1415 panarea (1){format_ext}",
-                # Add more common patterns based on real file names
-            ]
+        for pattern in common_patterns:
+            # URL encode the filename to handle spaces and special characters
+            encoded_filename = urllib.parse.quote(f"{pattern}{format_ext}")
+            image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
             
-            for filename in possible_names:
-                image_url = f"{IMAGE_BASE_URL}/{filename}"
-                if await check_image_exists(session, image_url):
-                    return ImageSearchResult(
-                        code=code,
-                        found=True,
-                        image_url=image_url,
-                        format=format_ext
-                    )
+            if await check_image_exists(session, image_url):
+                return ImageSearchResult(
+                    code=code,
+                    found=True,
+                    image_url=image_url,
+                    format=format_ext
+                )
     
     return ImageSearchResult(
         code=code,
