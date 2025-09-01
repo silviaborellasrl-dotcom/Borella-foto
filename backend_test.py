@@ -216,26 +216,53 @@ class ImageSearchAPITester:
             files=files
         )
 
-    def test_download_batch_zip(self):
-        """Test batch ZIP download"""
+    def test_download_batch_zip_known_codes(self):
+        """Test batch ZIP download with known codes"""
+        known_codes = ["24369", "13025", "2210", "117"]
+        excel_file = self.create_test_excel_file(known_codes)
+        
+        files = {'file': ('known_codes.xlsx', excel_file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+        
+        success, response = self.run_test(
+            "Download Batch ZIP - Known Codes",
+            "POST",
+            "download-batch-zip",
+            200,
+            files=files
+        )
+        
+        # If no images found, it might return 404
+        if not success:
+            success_404, _ = self.run_test(
+                "Download Batch ZIP - Known Codes (No Images)",
+                "POST", 
+                "download-batch-zip",
+                404,
+                files=files
+            )
+            return success_404, {}
+        
+        return success, response
+
+    def test_download_batch_zip_test_codes(self):
+        """Test batch ZIP download with test codes"""
         test_codes = ["TEST123", "PROD001", "ABC123"]
         excel_file = self.create_test_excel_file(test_codes)
         
         files = {'file': ('test_codes.xlsx', excel_file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
         
         success, response = self.run_test(
-            "Download Batch ZIP",
+            "Download Batch ZIP - Test Codes",
             "POST",
             "download-batch-zip",
-            200,  # Expecting 200 even if no images found, or 404 if none found
+            200,
             files=files
         )
         
         # The endpoint might return 404 if no images are found, which is also valid
         if not success:
-            # Try again expecting 404
             success_404, _ = self.run_test(
-                "Download Batch ZIP - No Images",
+                "Download Batch ZIP - Test Codes (No Images)",
                 "POST", 
                 "download-batch-zip",
                 404,
