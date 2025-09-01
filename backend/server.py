@@ -90,8 +90,8 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
     # All supported formats including case variations
     format_extensions = [".jpg", ".JPG", ".png", ".PNG", ".jpeg", ".JPEG", ".webp", ".WEBP", ".tif", ".TIF"]
     
-    # Limit concurrent checks to avoid overwhelming the server
-    max_checks = 20  # Limit total pattern checks per code
+    # Limit concurrent checks to avoid overwhelming the server but allow more for complex patterns
+    max_checks = 35  # Increased limit for complex multi-code patterns
     check_count = 0
     
     for format_ext in format_extensions:
