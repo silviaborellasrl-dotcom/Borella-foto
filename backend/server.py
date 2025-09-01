@@ -129,11 +129,13 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
         
         # If priority patterns fail, try a few high-probability extended patterns
         if check_count < max_checks:
-            # Only try most common extensions based on examples
+            # Only try most common extensions based on examples and real data
             high_probability_patterns = [
                 f"{code} - BEST TISANIERA{format_ext}",
                 f"{code} - ROSSO{format_ext}",
                 f"{code}- VEGA SET 6 COPPETTE ARLECCHIN{format_ext}",
+                # Specific pattern for code 117 found in real data
+                f"{code} - 118 - 1124 - 1415 panarea (1){format_ext}",
             ]
             
             # If numeric code, try one adjacent code pattern (most common case)
