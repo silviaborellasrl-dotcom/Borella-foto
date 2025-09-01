@@ -149,10 +149,11 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                     f"{code} - {next_code} ROSSO{format_ext}",
                 ])
                 
-                # Pattern: PREV_CODES - CODE - NEXT_CODES (code in middle)
+                # Pattern: PREV_CODES - CODE - NEXT_CODES (code in middle or at start)
                 # Based on real examples: 
                 # 22492 - 22493 - 22494 - 22495 - 22496 PORTAFOTO-ALTEA.jpg
                 # 23274 - 23275 - 23276 - 12277 CAFFETTIERA-KELLY.jpg
+                # 1282 - 1283 - 1196 - 1200.jpg
                 if base_code >= 2:
                     prev_code1 = base_code - 2
                     prev_code2 = base_code - 1
@@ -163,11 +164,14 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                     multi_code_patterns = [
                         # Existing PORTAFOTO-ALTEA pattern
                         f"{prev_code1} - {prev_code2} - {code} - {next_code1} - {next_code2} PORTAFOTO-ALTEA{format_ext}",
-                        # New CAFFETTIERA-KELLY pattern (23274 - 23275 - 23276 - 12277)
+                        # CAFFETTIERA-KELLY pattern (23274 - 23275 - 23276 - 12277)
                         f"{prev_code1} - {prev_code2} - {code} - 12277 CAFFETTIERA-KELLY{format_ext}",
+                        # Specific pattern for 1282 - 1283 - 1196 - 1200.jpg
+                        f"{code} - {next_code1} - 1196 - 1200{format_ext}",
                         # General patterns
                         f"{prev_code2} - {code} - {next_code1}{format_ext}",
                         f"{prev_code1} - {prev_code2} - {code}{format_ext}",
+                        f"{code} - {next_code1} - {next_code2}{format_ext}",
                     ]
                     
                     for pattern in multi_code_patterns:
