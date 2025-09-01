@@ -138,16 +138,30 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                 f"{code} - 118 - 1124 - 1415 panarea (1){format_ext}",
             ]
             
-            # If numeric code, try adjacent code patterns (both before and after)
-            if code.isdigit() and check_count < max_checks - 5:
+            # If numeric code, try adjacent code patterns (prioritizing known working patterns)
+            if code.isdigit() and check_count < max_checks - 8:
                 base_code = int(code)
                 
-                # Pattern: CODE - NEXT_CODE (code at beginning)
+                # HIGH PRIORITY: Specific known working patterns first
+                # Pattern for 22497-22501 PORTAFOTO-ASTRA (highest priority)
+                if base_code >= 22497 and base_code <= 22499:
+                    high_priority_astra = "22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA"
+                    high_probability_patterns.insert(0, f"{high_priority_astra}{format_ext}")
+                    check_count += 1
+                
+                # Pattern for 22492-22496 PORTAFOTO-ALTEA  
+                if base_code >= 22492 and base_code <= 22496:
+                    high_priority_altea = "22492 - 22493 - 22494 - 22495 - 22496 PORTAFOTO-ALTEA"
+                    high_probability_patterns.insert(0, f"{high_priority_altea}{format_ext}")
+                    check_count += 1
+                
+                # Standard patterns
                 next_code = base_code + 1
                 high_probability_patterns.extend([
                     f"{code} - {next_code}{format_ext}",
                     f"{code} - {next_code} ROSSO{format_ext}",
                 ])
+                check_count += 2
                 
                 # Pattern: PREV_CODES - CODE - NEXT_CODES (code in middle or at start)
                 # Based on real examples: 
