@@ -178,8 +178,6 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                 
                 # Pattern: CODE_START - CODE_START+1 - CODE_START+2 - ... (consecutive codes at beginning)
                 # Based on real example: 22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA.jpg
-                # Pattern: CODE_START - CODE_START+1 - CODE_START+2 - ... (consecutive codes at beginning)
-                # Based on real example: 22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA.jpg
                 # This pattern applies when the current code could be at the start of a sequence
                 consecutive_patterns = []
                 if base_code >= 22497 and base_code <= 22499:
