@@ -281,13 +281,16 @@ def main():
     # Test all endpoints
     tests = [
         tester.test_root_endpoint,
-        tester.test_single_search_valid,
+        tester.test_single_search_known_codes,
+        tester.test_single_search_test_codes,
         tester.test_single_search_empty,
         tester.test_download_image_invalid,
-        tester.test_batch_search_valid,
+        tester.test_batch_search_known_codes,
+        tester.test_batch_search_test_codes,
         tester.test_batch_search_invalid_file,
         tester.test_batch_search_no_codice_column,
-        tester.test_download_batch_zip
+        tester.test_download_batch_zip_known_codes,
+        tester.test_download_batch_zip_test_codes
     ]
     
     for test in tests:
