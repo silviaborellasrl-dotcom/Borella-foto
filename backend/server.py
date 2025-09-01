@@ -82,71 +82,37 @@ async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
 import re
 import urllib.parse
 
-# Function to generate possible file patterns for a product code
-def generate_file_patterns(code: str) -> List[str]:
-    """Generate possible filename patterns for a given product code"""
-    code = code.strip().upper()
-    
-    patterns = [
-        # Basic patterns
-        code,
-        f"{code}",
-        # Patterns with common separators
-        f"{code} -",
-        f"{code}-",
-        f"- {code}",
-        f"- {code} -",
-        # Patterns with spaces
-        f"{code} ",
-        f" {code}",
-        f" {code} ",
-        # Patterns with common product naming
-        f"{code} panarea",
-        f"{code} - panarea",
-        f"{code} panarea (1)",
-        f"{code} - panarea (1)",
-        # Multiple codes pattern (based on the example: 117 - 118 - 1124 - 1415)
-        f"{code} - \\d+ - \\d+ - \\d+",
-        f"{code} - \\d+ - \\d+ - \\d+ panarea",
-        f"{code} - \\d+ - \\d+ - \\d+ panarea \\(\\d+\\)",
-    ]
-    
-    return patterns
-
-# Function to find image for a product code using smart pattern matching
+# Function to find image for a product code using pattern matching
 async def find_product_image(session: aiohttp.ClientSession, code: str) -> ImageSearchResult:
     code = code.strip()
     
-    # All supported formats including case variations observed in examples
+    # Based on user examples:
+    # 24369 - BEST TISANIERA.jpg
+    # 13025 - 13026 ROSSO.jpg  
+    # 1458- VEGA SET 6 COPPETTE ARLECCHIN.jpg
+    # 19500 SIRIO-OLIERA-INOX-5-PEZZI-J12504.jpg
+    # 21929 - 21930 - 21931 - 21932 - 22899 - 21933 - 21934 2022 2.JPG
+    # 2210 (4).png
+    
+    # All supported formats including case variations
     format_extensions = [".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".webp", ".WEBP", ".tif", ".TIF"]
     
-    # Based on real filename examples from user:
-    # Pattern analysis shows code is always at the beginning, followed by:
-    # - Exact match: "2210 (4).png" 
-    # - Space + dash: "24369 - BEST TISANIERA.jpg"
-    # - Direct dash: "1458- VEGA SET..."
-    # - Space only: "19500 SIRIO-OLIERA..."
-    # - Multiple codes: "13025 - 13026 ROSSO.jpg"
-    
     for format_ext in format_extensions:
-        # Priority order: most common patterns first for efficiency
-        search_patterns = [
-            # 1. Exact match (CODE.ext)
+        # Test patterns in order of likelihood (most common first)
+        test_patterns = [
+            # 1. Exact match
             f"{code}{format_ext}",
             
-            # 2. Variants with parentheses (CODE (1).ext, CODE (2).ext, etc.)
+            # 2. With parentheses (variants)
             f"{code} (1){format_ext}",
             f"{code} (2){format_ext}",
             f"{code} (3){format_ext}",
             f"{code} (4){format_ext}",
             f"{code} (5){format_ext}",
-            
-            # 3. With separator patterns - try wildcards by testing common completions
-            # Since we can't wildcard search, we'll try the most common patterns from examples
         ]
         
         # Test basic patterns first
-        for pattern in search_patterns:
+        for pattern in test_patterns:
             encoded_filename = urllib.parse.quote(pattern)
             image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
             
@@ -158,32 +124,34 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                     format=format_ext
                 )
         
-        # If basic patterns fail, try patterns with common suffixes based on examples
-        # This is more intensive but covers the complex naming cases
+        # If basic patterns fail, try common extended patterns
         extended_patterns = []
         
-        # Pattern: CODE - DESCRIPTION (most common from examples)
-        common_suffixes = [
+        # Based on examples, try common naming patterns
+        common_completions = [
             " - BEST TISANIERA",
-            " - ROSSO", " - NERO", " - BIANCO", " - BLU",
+            " - ROSSO", " - NERO", " - BIANCO", " - BLU", " - VERDE",
             "- VEGA SET 6 COPPETTE ARLECCHIN",
             " SIRIO-OLIERA-INOX-5-PEZZI-J12504",
             " - TISANIERA", " - SET", " - OLIERA", " - INOX",
+            " - VEGA", " - SIRIO", " - PANAREA",
+            " 2022", " 2022 2", " 2023", " 2024"
         ]
         
-        for suffix in common_suffixes:
-            extended_patterns.append(f"{code}{suffix}{format_ext}")
+        for completion in common_completions:
+            extended_patterns.append(f"{code}{completion}{format_ext}")
         
-        # Pattern: CODE - OTHER_CODES (multi-code files)
-        # Try adjacent codes as they often appear together
+        # Try adjacent codes (multi-code files)
         if code.isdigit():
             base_code = int(code)
-            for offset in range(1, 6):  # Try next 5 codes
-                next_code = base_code + offset
+            # Test a few adjacent codes as they often appear together
+            for i in range(1, 8):
+                next_code = base_code + i
                 extended_patterns.extend([
                     f"{code} - {next_code}{format_ext}",
                     f"{code} - {next_code} ROSSO{format_ext}",
                     f"{code} - {next_code} - {next_code + 1}{format_ext}",
+                    f"{code} - {next_code} - {next_code + 1} - {next_code + 2}{format_ext}",
                 ])
         
         # Test extended patterns
