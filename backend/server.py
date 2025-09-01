@@ -139,7 +139,7 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
             ]
             
             # If numeric code, try adjacent code patterns (both before and after)
-            if code.isdigit() and check_count < max_checks - 3:
+            if code.isdigit() and check_count < max_checks - 5:
                 base_code = int(code)
                 
                 # Pattern: CODE - NEXT_CODE (code at beginning)
@@ -150,16 +150,22 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                 ])
                 
                 # Pattern: PREV_CODES - CODE - NEXT_CODES (code in middle)
-                # Based on real example: 22492 - 22493 - 22494 - 22495 - 22496 PORTAFOTO-ALTEA.jpg
+                # Based on real examples: 
+                # 22492 - 22493 - 22494 - 22495 - 22496 PORTAFOTO-ALTEA.jpg
+                # 23274 - 23275 - 23276 - 12277 CAFFETTIERA-KELLY.jpg
                 if base_code >= 2:
                     prev_code1 = base_code - 2
                     prev_code2 = base_code - 1
                     next_code1 = base_code + 1
                     next_code2 = base_code + 2
                     
-                    # Try the exact pattern found in real data
+                    # Try patterns with specific known endings from real data
                     multi_code_patterns = [
+                        # Existing PORTAFOTO-ALTEA pattern
                         f"{prev_code1} - {prev_code2} - {code} - {next_code1} - {next_code2} PORTAFOTO-ALTEA{format_ext}",
+                        # New CAFFETTIERA-KELLY pattern (23274 - 23275 - 23276 - 12277)
+                        f"{prev_code1} - {prev_code2} - {code} - 12277 CAFFETTIERA-KELLY{format_ext}",
+                        # General patterns
                         f"{prev_code2} - {code} - {next_code1}{format_ext}",
                         f"{prev_code1} - {prev_code2} - {code}{format_ext}",
                     ]
@@ -169,6 +175,20 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                             break
                         high_probability_patterns.append(pattern)
                         check_count += 1
+                
+                # Pattern: CODE_START - CODE_START+1 - CODE_START+2 - ... (consecutive codes at beginning)
+                # Based on real example: 22497 - 22498 - 22499 - 22500 - 22501 PORTAFOTO-ASTRA.jpg
+                consecutive_patterns = [
+                    f"{code} - {base_code + 1} - {base_code + 2} - {base_code + 3} - {base_code + 4} PORTAFOTO-ASTRA{format_ext}",
+                    f"{code} - {base_code + 1} - {base_code + 2}{format_ext}",
+                    f"{code} - {base_code + 1} - {base_code + 2} - {base_code + 3}{format_ext}",
+                ]
+                
+                for pattern in consecutive_patterns:
+                    if check_count >= max_checks:
+                        break
+                    high_probability_patterns.append(pattern)
+                    check_count += 1
             
             for pattern in high_probability_patterns:
                 if check_count >= max_checks:
