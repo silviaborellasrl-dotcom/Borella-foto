@@ -34,10 +34,22 @@ function App() {
 
     setSingleLoading(true);
     try {
-      const response = await axios.post(`${API}/search-single`, {
-        code: singleCode.trim()
+      console.log("Making API call to:", `${API}/search-single`);
+      const response = await fetch(`${API}/search-single`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code: singleCode.trim() })
       });
-      setSingleResult(response.data);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("API response:", data);
+      setSingleResult(data);
     } catch (error) {
       console.error("Errore nella ricerca:", error);
       setSingleResult({
