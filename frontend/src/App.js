@@ -145,12 +145,17 @@ function App() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await axios.post(`${API}/download-batch-zip`, formData, {
-        responseType: 'blob',
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await fetch(`${API}/download-batch-zip`, {
+        method: 'POST',
+        body: formData
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'immagini_prodotti.zip');
