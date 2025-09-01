@@ -68,12 +68,16 @@ function App() {
 
     try {
       const filename = `${singleResult.code}${singleResult.format}`;
-      const response = await axios.get(
-        `${API}/download-image?url=${encodeURIComponent(singleResult.image_url)}&filename=${encodeURIComponent(filename)}`,
-        { responseType: 'blob' }
+      const response = await fetch(
+        `${API}/download-image?url=${encodeURIComponent(singleResult.image_url)}&filename=${encodeURIComponent(filename)}`
       );
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
