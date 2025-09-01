@@ -82,37 +82,40 @@ async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
 import re
 import urllib.parse
 
-# Function to find image for a product code using pattern matching
+# Function to find image for a product code using optimized pattern matching
 async def find_product_image(session: aiohttp.ClientSession, code: str) -> ImageSearchResult:
     code = code.strip()
     
-    # Based on user examples:
-    # 24369 - BEST TISANIERA.jpg
-    # 13025 - 13026 ROSSO.jpg  
-    # 1458- VEGA SET 6 COPPETTE ARLECCHIN.jpg
-    # 19500 SIRIO-OLIERA-INOX-5-PEZZI-J12504.jpg
-    # 21929 - 21930 - 21931 - 21932 - 22899 - 21933 - 21934 2022 2.JPG
-    # 2210 (4).png
-    
+    # Optimized search with timeout - limit to most common patterns to avoid long searches
     # All supported formats including case variations
-    format_extensions = [".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".webp", ".WEBP", ".tif", ".TIF"]
+    format_extensions = [".jpg", ".JPG", ".png", ".PNG", ".jpeg", ".JPEG", ".webp", ".WEBP", ".tif", ".TIF"]
+    
+    # Limit concurrent checks to avoid overwhelming the server
+    max_checks = 20  # Limit total pattern checks per code
+    check_count = 0
     
     for format_ext in format_extensions:
+        if check_count >= max_checks:
+            break
+            
         # Test patterns in order of likelihood (most common first)
-        test_patterns = [
-            # 1. Exact match
+        priority_patterns = [
+            # 1. Exact match (most common)
             f"{code}{format_ext}",
             
-            # 2. With parentheses (variants)
+            # 2. With parentheses (common variants)
             f"{code} (1){format_ext}",
             f"{code} (2){format_ext}",
             f"{code} (3){format_ext}",
             f"{code} (4){format_ext}",
-            f"{code} (5){format_ext}",
         ]
         
-        # Test basic patterns first
-        for pattern in test_patterns:
+        # Test priority patterns first
+        for pattern in priority_patterns:
+            if check_count >= max_checks:
+                break
+            check_count += 1
+            
             encoded_filename = urllib.parse.quote(pattern)
             image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
             
@@ -124,48 +127,39 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                     format=format_ext
                 )
         
-        # If basic patterns fail, try common extended patterns
-        extended_patterns = []
-        
-        # Based on examples, try common naming patterns
-        common_completions = [
-            " - BEST TISANIERA",
-            " - ROSSO", " - NERO", " - BIANCO", " - BLU", " - VERDE",
-            "- VEGA SET 6 COPPETTE ARLECCHIN",
-            " SIRIO-OLIERA-INOX-5-PEZZI-J12504",
-            " - TISANIERA", " - SET", " - OLIERA", " - INOX",
-            " - VEGA", " - SIRIO", " - PANAREA",
-            " 2022", " 2022 2", " 2023", " 2024"
-        ]
-        
-        for completion in common_completions:
-            extended_patterns.append(f"{code}{completion}{format_ext}")
-        
-        # Try adjacent codes (multi-code files)
-        if code.isdigit():
-            base_code = int(code)
-            # Test a few adjacent codes as they often appear together
-            for i in range(1, 8):
-                next_code = base_code + i
-                extended_patterns.extend([
+        # If priority patterns fail, try a few high-probability extended patterns
+        if check_count < max_checks:
+            # Only try most common extensions based on examples
+            high_probability_patterns = [
+                f"{code} - BEST TISANIERA{format_ext}",
+                f"{code} - ROSSO{format_ext}",
+                f"{code}- VEGA SET 6 COPPETTE ARLECCHIN{format_ext}",
+            ]
+            
+            # If numeric code, try one adjacent code pattern (most common case)
+            if code.isdigit() and check_count < max_checks - 2:
+                base_code = int(code)
+                next_code = base_code + 1
+                high_probability_patterns.extend([
                     f"{code} - {next_code}{format_ext}",
                     f"{code} - {next_code} ROSSO{format_ext}",
-                    f"{code} - {next_code} - {next_code + 1}{format_ext}",
-                    f"{code} - {next_code} - {next_code + 1} - {next_code + 2}{format_ext}",
                 ])
-        
-        # Test extended patterns
-        for pattern in extended_patterns:
-            encoded_filename = urllib.parse.quote(pattern)
-            image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
             
-            if await check_image_exists(session, image_url):
-                return ImageSearchResult(
-                    code=code,
-                    found=True,
-                    image_url=image_url,
-                    format=format_ext
-                )
+            for pattern in high_probability_patterns:
+                if check_count >= max_checks:
+                    break
+                check_count += 1
+                
+                encoded_filename = urllib.parse.quote(pattern)
+                image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
+                
+                if await check_image_exists(session, image_url):
+                    return ImageSearchResult(
+                        code=code,
+                        found=True,
+                        image_url=image_url,
+                        format=format_ext
+                    )
     
     return ImageSearchResult(
         code=code,
