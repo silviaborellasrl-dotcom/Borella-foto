@@ -111,10 +111,17 @@ function App() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await axios.post(`${API}/search-batch`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await fetch(`${API}/search-batch`, {
+        method: 'POST',
+        body: formData
       });
-      setBatchResult(response.data);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setBatchResult(data);
     } catch (error) {
       console.error("Errore nella ricerca batch:", error);
       setBatchResult({
