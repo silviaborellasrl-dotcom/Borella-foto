@@ -10,8 +10,11 @@ import { Badge } from "./components/ui/badge";
 import { Separator } from "./components/ui/separator";
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://image-fetch-system.preview.emergentagent.com";
 const API = `${BACKEND_URL}/api`;
+
+// Debug: Log the API URL
+console.log("API URL:", API);
 
 function App() {
   // Single search state
