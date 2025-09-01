@@ -229,6 +229,16 @@ async def download_batch_zip(file: UploadFile = File(...)):
         zip_path = os.path.join(temp_dir, "immagini_prodotti.zip")
         
         try:
+            # Browser-like headers for downloading images
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9,it;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
             async with aiohttp.ClientSession() as session:
                 with zipfile.ZipFile(zip_path, 'w') as zip_file:
                     downloaded_count = 0
@@ -238,7 +248,7 @@ async def download_batch_zip(file: UploadFile = File(...)):
                         
                         if result.found and result.image_url:
                             try:
-                                async with session.get(result.image_url) as response:
+                                async with session.get(result.image_url, headers=headers) as response:
                                     if response.status == 200:
                                         image_content = await response.read()
                                         filename = f"{code}{result.format}"
