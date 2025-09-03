@@ -155,6 +155,12 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                     high_probability_patterns.insert(0, f"{high_priority_altea}{format_ext}")
                     check_count += 1
                 
+                # Pattern for 25531-25534 sequence (4 consecutive codes)
+                if base_code >= 25531 and base_code <= 25534:
+                    high_priority_25531 = "25531 - 25532 - 25533 - 25534"
+                    high_probability_patterns.insert(0, f"{high_priority_25531}{format_ext}")
+                    check_count += 1
+                
                 # Standard patterns
                 next_code = base_code + 1
                 high_probability_patterns.extend([
