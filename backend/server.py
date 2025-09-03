@@ -168,6 +168,7 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                 # 22492 - 22493 - 22494 - 22495 - 22496 PORTAFOTO-ALTEA.jpg
                 # 23274 - 23275 - 23276 - 12277 CAFFETTIERA-KELLY.jpg
                 # 1282 - 1283 - 1196 - 1200.jpg
+                # 25531 - 25532 - 25533 - 25534.jpg
                 if base_code >= 2:
                     prev_code1 = base_code - 2
                     prev_code2 = base_code - 1
@@ -185,6 +186,10 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
                         # Specific pattern for 1117 - 1118 - 1124.jpg (both positions)
                         f"{code} - {next_code1} - 1124{format_ext}",  # For code 1117
                         f"{prev_code2} - {code} - 1124{format_ext}",  # For code 1118
+                        # New pattern for 25531 - 25532 - 25533 - 25534.jpg (4 consecutive codes)
+                        f"{prev_code2} - {code} - {next_code1} - {next_code2}{format_ext}",  # For middle positions (25532, 25533)
+                        f"{code} - {next_code1} - {next_code2} - {base_code + 3}{format_ext}",  # For first position (25531)
+                        f"{prev_code1} - {prev_code2} - {code} - {next_code1}{format_ext}",  # For third position (25533)
                         # General patterns
                         f"{prev_code2} - {code} - {next_code1}{format_ext}",
                         f"{prev_code1} - {prev_code2} - {code}{format_ext}",
