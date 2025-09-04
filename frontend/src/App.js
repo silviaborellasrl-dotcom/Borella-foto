@@ -315,7 +315,7 @@ function App() {
                       className="border-slate-200 focus:border-blue-500"
                     />
                     <p className="text-sm text-slate-500 mt-2">
-                      Formato supportato: .xlsx con colonna "CODICE"
+                      Formato supportato: .xlsx con colonna "CODICE" o "COD.PR"
                     </p>
                   </div>
 
