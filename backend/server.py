@@ -376,15 +376,29 @@ async def download_batch_zip(file: UploadFile = File(...)):
         workbook = openpyxl.load_workbook(BytesIO(contents))
         sheet = workbook.active
         
+        # Find CODICE or COD.PR column (same logic as search-batch)
         codice_col = None
+        column_found = None
+        
+        # First, try to find CODICE column
         for col in range(1, sheet.max_column + 1):
             cell_value = sheet.cell(row=1, column=col).value
             if cell_value and str(cell_value).upper() == "CODICE":
                 codice_col = col
+                column_found = "CODICE"
                 break
         
+        # If CODICE not found, try to find COD.PR column
         if codice_col is None:
-            raise HTTPException(status_code=400, detail="Colonna 'CODICE' non trovata nel file Excel")
+            for col in range(1, sheet.max_column + 1):
+                cell_value = sheet.cell(row=1, column=col).value
+                if cell_value and str(cell_value).upper() == "COD.PR":
+                    codice_col = col
+                    column_found = "COD.PR"
+                    break
+        
+        if codice_col is None:
+            raise HTTPException(status_code=400, detail="Colonna 'CODICE' o 'COD.PR' non trovata nel file Excel")
         
         codes = []
         for row in range(2, sheet.max_row + 1):
