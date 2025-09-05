@@ -94,24 +94,38 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
     max_checks = 50  # Increased to ensure all basic formats are tested
     check_count = 0
     
+    # PRIORITY 1: Test basic exact match for ALL formats first
+    # This ensures simple files like "25627.JPG" are always found
     for format_ext in format_extensions:
         if check_count >= max_checks:
             break
             
-        # Test patterns in order of likelihood (most common first)
-        priority_patterns = [
-            # 1. Exact match (most common)
-            f"{code}{format_ext}",
+        exact_match_pattern = f"{code}{format_ext}"
+        encoded_filename = urllib.parse.quote(exact_match_pattern)
+        image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
+        
+        check_count += 1
+        if await check_image_exists(session, image_url):
+            return ImageSearchResult(
+                code=code,
+                found=True,
+                image_url=image_url,
+                format=format_ext
+            )
+    
+    # PRIORITY 2: Test variant patterns (parentheses) for ALL formats
+    for format_ext in format_extensions:
+        if check_count >= max_checks:
+            break
             
-            # 2. With parentheses (common variants)
+        variant_patterns = [
             f"{code} (1){format_ext}",
             f"{code} (2){format_ext}",
             f"{code} (3){format_ext}",
             f"{code} (4){format_ext}",
         ]
         
-        # Test priority patterns first
-        for pattern in priority_patterns:
+        for pattern in variant_patterns:
             if check_count >= max_checks:
                 break
             check_count += 1
