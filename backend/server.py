@@ -370,7 +370,78 @@ async def download_single_image(url: str, filename: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel download: {str(e)}")
 
-@api_router.post("/search-batch")
+@api_router.post("/search-batch", response_model=BatchSearchResult)
+async def search_batch_products_sync(file: UploadFile = File(...)):
+    """Original synchronous batch search endpoint"""
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="Il file deve essere in formato .xlsx")
+    
+    try:
+        # Read Excel file
+        contents = await file.read()
+        workbook = openpyxl.load_workbook(BytesIO(contents))
+        sheet = workbook.active
+        
+        # Find CODICE or COD.PR column
+        codice_col = None
+        column_found = None
+        
+        # First, try to find CODICE column
+        for col in range(1, sheet.max_column + 1):
+            cell_value = sheet.cell(row=1, column=col).value
+            if cell_value and str(cell_value).upper() == "CODICE":
+                codice_col = col
+                column_found = "CODICE"
+                break
+        
+        # If CODICE not found, try to find COD.PR column
+        if codice_col is None:
+            for col in range(1, sheet.max_column + 1):
+                cell_value = sheet.cell(row=1, column=col).value
+                if cell_value and str(cell_value).upper() == "COD.PR":
+                    codice_col = col
+                    column_found = "COD.PR"
+                    break
+        
+        if codice_col is None:
+            raise HTTPException(status_code=400, detail="Colonna 'CODICE' o 'COD.PR' non trovata nel file Excel")
+        
+        # Extract codes
+        codes = []
+        for row in range(2, sheet.max_row + 1):
+            cell_value = sheet.cell(row=row, column=codice_col).value
+            if cell_value:
+                codes.append(str(cell_value).strip())
+        
+        if not codes:
+            raise HTTPException(status_code=400, detail="Nessun codice trovato nella colonna")
+        
+        # Search for images synchronously
+        results = []
+        found_codes = []
+        not_found_codes = []
+        
+        async with aiohttp.ClientSession() as session:
+            for code in codes:
+                result = await find_product_image(session, code)
+                results.append(result)
+                
+                if result.found:
+                    found_codes.append(result.code)
+                else:
+                    not_found_codes.append(result.code)
+        
+        return BatchSearchResult(
+            total_codes=len(codes),
+            found_codes=found_codes,
+            not_found_codes=not_found_codes,
+            results=results
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nell'elaborazione del file: {str(e)}")
+
+@api_router.post("/search-batch-start")
 async def search_batch_products(file: UploadFile = File(...)):
     if not file.filename.endswith('.xlsx'):
         raise HTTPException(status_code=400, detail="Il file deve essere in formato .xlsx")
