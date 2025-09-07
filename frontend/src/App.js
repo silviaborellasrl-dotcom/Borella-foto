@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Separator } from "./components/ui/separator";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://image-fetch-system.preview.emergentagent.com";
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://productfinder-3.preview.emergentagent.com";
 const API = `${BACKEND_URL}/api`;
 
 // Debug: Log the API URL
