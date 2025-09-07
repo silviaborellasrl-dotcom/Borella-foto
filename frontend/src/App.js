@@ -106,16 +106,67 @@ function App() {
     }
   };
 
-  // Batch search
+  // Progress tracking function
+  const pollProgress = async (taskId) => {
+    try {
+      const response = await fetch(`${API}/progress/${taskId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const progress = await response.json();
+      setProgressData(progress);
+      
+      if (progress.status === "completed") {
+        // Get final results
+        setShowProgress(false);
+        setBatchLoading(false);
+        
+        setBatchResult({
+          total_codes: progress.total_items,
+          found_codes: progress.found_items || [],
+          not_found_codes: progress.not_found_items || [],
+          results: [] // Results would be populated from a separate endpoint if needed
+        });
+        
+        setCurrentTaskId(null);
+      } else if (progress.status === "error") {
+        setShowProgress(false);
+        setBatchLoading(false);
+        setBatchResult({
+          total_codes: progress.total_items,
+          found_codes: [],
+          not_found_codes: [],
+          error: progress.current_item
+        });
+        setCurrentTaskId(null);
+      } else {
+        // Continue polling
+        setTimeout(() => pollProgress(taskId), 1000);
+      }
+    } catch (error) {
+      console.error("Errore nel polling del progresso:", error);
+      setShowProgress(false);
+      setBatchLoading(false);
+      setCurrentTaskId(null);
+    }
+  };
+
+  // Batch search function with progress tracking
   const handleBatchSearch = async () => {
     if (!selectedFile) return;
 
     setBatchLoading(true);
+    setShowProgress(true);
+    setBatchResult(null);
+    
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(`${API}/search-batch`, {
+      // Start async batch processing
+      const response = await fetch(`${API}/search-batch-async`, {
         method: 'POST',
         body: formData
       });
@@ -125,18 +176,24 @@ function App() {
       }
 
       const data = await response.json();
-      setBatchResult(data);
+
+      if (data.task_id) {
+        setCurrentTaskId(data.task_id);
+        // Start polling for progress
+        pollProgress(data.task_id);
+      } else {
+        throw new Error("Task ID non ricevuto");
+      }
     } catch (error) {
       console.error("Errore nella ricerca batch:", error);
       setBatchResult({
         total_codes: 0,
         found_codes: [],
         not_found_codes: [],
-        results: [],
-        error: "Errore nell'elaborazione del file"
+        error: "Errore nell'avvio dell'elaborazione"
       });
-    } finally {
       setBatchLoading(false);
+      setShowProgress(false);
     }
   };
 
