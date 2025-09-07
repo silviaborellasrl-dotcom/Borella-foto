@@ -197,7 +197,7 @@ function App() {
     }
   };
 
-  // Download batch ZIP
+  // Download batch ZIP function (updated for progress tracking)
   const handleBatchDownload = async () => {
     if (!selectedFile) return;
 
