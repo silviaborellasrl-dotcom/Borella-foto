@@ -214,13 +214,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Batch image search with async processing"
-    - "ZIP download endpoint"
-    - "Progress tracking endpoint"
     - "Batch search with progress bar"
   stuck_tasks:
     - "Batch search with progress bar"
-    - "ZIP download endpoint"
   test_all: false
   test_priority: "stuck_first"
 
