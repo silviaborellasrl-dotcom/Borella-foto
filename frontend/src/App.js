@@ -465,6 +465,22 @@ function App() {
                         Scarica ZIP
                       </Button>
                     )}
+                    
+                    {/* Alternative: Show download button when progress is completed with found items */}
+                    {!batchResult && progressData && progressData.status === "completed" && progressData.found_count > 0 && (
+                      <Button 
+                        onClick={handleBatchDownload}
+                        disabled={downloadLoading}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {downloadLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-2" />
+                        )}
+                        Scarica ZIP ({progressData.found_count} immagini)
+                      </Button>
+                    )}
                   </div>
                 </div>
 
