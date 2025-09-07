@@ -184,27 +184,33 @@ frontend:
 
   - task: "Batch search with progress bar"
     implemented: true
-    working: "needs_testing"
+    working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "Progress bar implemented but ZIP download button not showing after completion"
+      - working: true
+        agent: "main"
+        comment: "✅ FIXED: Backend now returns found_items and not_found_items arrays. ZIP download button now appears correctly after batch completion. Tested with Excel file - shows '3 Immagini trovate' and green 'Scarica ZIP' button with found codes listed."
 
   - task: "Progress polling and UI updates"
     implemented: true
-    working: "needs_testing"
+    working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "needs_testing"
         agent: "main"
         comment: "Progress polling logic needs verification with real batch processing"
+      - working: true
+        agent: "main"
+        comment: "✅ VERIFIED: Progress polling works perfectly. Shows real-time updates: '2 di 4 codici elaborati', '50%', 'Trovati: 2', 'Non trovati: 0', with animated progress bar."
 
 metadata:
   created_by: "main_agent"
