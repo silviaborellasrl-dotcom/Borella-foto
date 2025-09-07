@@ -57,6 +57,51 @@ class BatchSearchResult(BaseModel):
 class SearchRequest(BaseModel):
     code: str
 
+# Progress tracking storage
+progress_storage = {}
+
+class ProgressTracker:
+    def __init__(self, task_id: str, total_items: int):
+        self.task_id = task_id
+        self.total_items = total_items
+        self.completed_items = 0
+        self.current_item = ""
+        self.found_items = []
+        self.not_found_items = []
+        self.start_time = datetime.now()
+        self.status = "in_progress"  # in_progress, completed, error
+        
+    def update_progress(self, current_item: str, found: bool = None):
+        self.current_item = current_item
+        if found is not None:
+            self.completed_items += 1
+            if found:
+                self.found_items.append(current_item)
+            else:
+                self.not_found_items.append(current_item)
+    
+    def complete(self):
+        self.status = "completed"
+        self.current_item = "Completato"
+    
+    def error(self, message: str):
+        self.status = "error"
+        self.current_item = f"Errore: {message}"
+    
+    def get_progress(self):
+        progress_percentage = (self.completed_items / self.total_items * 100) if self.total_items > 0 else 0
+        return {
+            "task_id": self.task_id,
+            "status": self.status,
+            "progress_percentage": round(progress_percentage, 1),
+            "completed_items": self.completed_items,
+            "total_items": self.total_items,
+            "current_item": self.current_item,
+            "found_count": len(self.found_items),
+            "not_found_count": len(self.not_found_items),
+            "elapsed_time": str(datetime.now() - self.start_time).split('.')[0]
+        }
+
 # Helper function to check if image exists
 async def check_image_exists(session: aiohttp.ClientSession, url: str) -> bool:
     try:
