@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
-import { Search, Download, Upload, AlertCircle, CheckCircle, Loader2, Image as ImageIcon } from "lucide-react";
+import { Search, Download, Upload, AlertCircle, CheckCircle, Loader2, Image as ImageIcon, Clock, TrendingUp } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
