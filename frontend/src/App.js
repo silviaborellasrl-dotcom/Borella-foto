@@ -388,6 +388,55 @@ function App() {
                     </div>
                   )}
 
+                  {/* Progress Bar Component */}
+                  {showProgress && progressData && (
+                    <div className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <span className="text-blue-800 font-medium">Elaborazione in corso...</span>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                          <span className="text-blue-700 text-sm">{progressData.elapsed_time}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-blue-700">
+                            {progressData.completed_items} di {progressData.total_items} codici elaborati
+                          </span>
+                          <span className="text-blue-700 font-semibold">
+                            {progressData.progress_percentage}%
+                          </span>
+                        </div>
+                        
+                        <div className="w-full bg-blue-100 rounded-full h-3 overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out relative"
+                            style={{ width: `${progressData.progress_percentage}%` }}
+                          >
+                            <div className="absolute inset-0 bg-white bg-opacity-20 animate-pulse"></div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center text-sm">
+                          <div className="text-blue-700">
+                            <strong>Attuale:</strong> {progressData.current_item}
+                          </div>
+                          <div className="flex gap-4">
+                            <span className="text-green-600">
+                              ✅ Trovati: {progressData.found_count}
+                            </span>
+                            <span className="text-orange-600">
+                              ❌ Non trovati: {progressData.not_found_count}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <Button 
                       onClick={handleBatchSearch}
