@@ -332,6 +332,8 @@ async def get_progress(task_id: str):
         del progress_storage[task_id]
     
     return progress_data
+
+@api_router.post("/search-single", response_model=ImageSearchResult)
 async def search_single_product(request: SearchRequest):
     if not request.code.strip():
         raise HTTPException(status_code=400, detail="Codice prodotto non può essere vuoto")
