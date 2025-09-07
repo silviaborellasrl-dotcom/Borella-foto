@@ -319,7 +319,19 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
 async def root():
     return {"message": "Sistema di Ricerca Immagini Prodotti"}
 
-@api_router.post("/search-single", response_model=ImageSearchResult)
+@api_router.get("/progress/{task_id}")
+async def get_progress(task_id: str):
+    if task_id not in progress_storage:
+        raise HTTPException(status_code=404, detail="Task ID non trovato")
+    
+    tracker = progress_storage[task_id]
+    progress_data = tracker.get_progress()
+    
+    # Clean up completed tasks after a while
+    if tracker.status in ["completed", "error"] and datetime.now() - tracker.start_time > timedelta(minutes=10):
+        del progress_storage[task_id]
+    
+    return progress_data
 async def search_single_product(request: SearchRequest):
     if not request.code.strip():
         raise HTTPException(status_code=400, detail="Codice prodotto non può essere vuoto")
