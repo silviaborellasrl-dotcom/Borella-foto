@@ -370,10 +370,13 @@ async def download_single_image(url: str, filename: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel download: {str(e)}")
 
-@api_router.post("/search-batch", response_model=BatchSearchResult)
+@api_router.post("/search-batch")
 async def search_batch_products(file: UploadFile = File(...)):
     if not file.filename.endswith('.xlsx'):
         raise HTTPException(status_code=400, detail="Il file deve essere in formato .xlsx")
+    
+    # Generate unique task ID
+    task_id = str(uuid.uuid4())
     
     try:
         # Read Excel file
@@ -381,7 +384,7 @@ async def search_batch_products(file: UploadFile = File(...)):
         workbook = openpyxl.load_workbook(BytesIO(contents))
         sheet = workbook.active
         
-        # Find CODICE or COD.PR column
+        # Find CODICE or COD.PR column (same logic as before)
         codice_col = None
         column_found = None
         
@@ -413,32 +416,157 @@ async def search_batch_products(file: UploadFile = File(...)):
                 codes.append(str(cell_value).strip())
         
         if not codes:
-            raise HTTPException(status_code=400, detail="Nessun codice trovato nella colonna CODICE")
+            raise HTTPException(status_code=400, detail="Nessun codice trovato nella colonna")
         
-        # Search for images
+        # Initialize progress tracker
+        tracker = ProgressTracker(task_id, len(codes))
+        progress_storage[task_id] = tracker
+        
+        # Return task ID immediately for progress tracking
+        return {
+            "task_id": task_id,
+            "total_codes": len(codes),
+            "column_used": column_found,
+            "message": "Elaborazione avviata. Usa l'ID per tracciare il progresso."
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nell'elaborazione del file: {str(e)}")
+
+@api_router.post("/search-batch-execute/{task_id}", response_model=BatchSearchResult)
+async def execute_batch_search(task_id: str):
+    if task_id not in progress_storage:
+        raise HTTPException(status_code=404, detail="Task ID non trovato")
+    
+    tracker = progress_storage[task_id]
+    
+    try:
+        # Search for images with progress tracking
         results = []
         found_codes = []
         not_found_codes = []
         
         async with aiohttp.ClientSession() as session:
-            tasks = [find_product_image(session, code) for code in codes]
-            results = await asyncio.gather(*tasks)
-            
-            for result in results:
+            for i, code in enumerate(tracker.found_items + tracker.not_found_items):
+                # Update progress
+                tracker.update_progress(f"Cercando {code}...")
+                
+                # Perform search
+                result = await find_product_image(session, code)
+                results.append(result)
+                
+                # Update tracker based on result
+                tracker.update_progress(code, result.found)
+                
                 if result.found:
                     found_codes.append(result.code)
                 else:
                     not_found_codes.append(result.code)
+                
+                # Small delay to prevent overwhelming the server
+                await asyncio.sleep(0.1)
+            
+            # Complete the task
+            tracker.complete()
+            
+            return BatchSearchResult(
+                total_codes=len(results),
+                found_codes=found_codes,
+                not_found_codes=not_found_codes,
+                results=results
+            )
+    
+    except Exception as e:
+        tracker.error(str(e))
+        raise HTTPException(status_code=500, detail=f"Errore durante la ricerca: {str(e)}")
+
+@api_router.post("/search-batch-async")
+async def search_batch_async(file: UploadFile = File(...)):
+    """Versione asincrona che avvia l'elaborazione in background"""
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="Il file deve essere in formato .xlsx")
+    
+    # Generate unique task ID
+    task_id = str(uuid.uuid4())
+    
+    try:
+        # Read Excel file
+        contents = await file.read()
+        workbook = openpyxl.load_workbook(BytesIO(contents))
+        sheet = workbook.active
         
-        return BatchSearchResult(
-            total_codes=len(codes),
-            found_codes=found_codes,
-            not_found_codes=not_found_codes,
-            results=results
-        )
+        # Find CODICE or COD.PR column
+        codice_col = None
+        column_found = None
+        
+        for col in range(1, sheet.max_column + 1):
+            cell_value = sheet.cell(row=1, column=col).value
+            if cell_value and str(cell_value).upper() == "CODICE":
+                codice_col = col
+                column_found = "CODICE"
+                break
+        
+        if codice_col is None:
+            for col in range(1, sheet.max_column + 1):
+                cell_value = sheet.cell(row=1, column=col).value
+                if cell_value and str(cell_value).upper() == "COD.PR":
+                    codice_col = col
+                    column_found = "COD.PR"
+                    break
+        
+        if codice_col is None:
+            raise HTTPException(status_code=400, detail="Colonna 'CODICE' o 'COD.PR' non trovata nel file Excel")
+        
+        # Extract codes
+        codes = []
+        for row in range(2, sheet.max_row + 1):
+            cell_value = sheet.cell(row=row, column=codice_col).value
+            if cell_value:
+                codes.append(str(cell_value).strip())
+        
+        if not codes:
+            raise HTTPException(status_code=400, detail="Nessun codice trovato nella colonna")
+        
+        # Initialize progress tracker
+        tracker = ProgressTracker(task_id, len(codes))
+        progress_storage[task_id] = tracker
+        
+        # Start background task
+        asyncio.create_task(process_batch_async(tracker, codes))
+        
+        return {
+            "task_id": task_id,
+            "total_codes": len(codes),
+            "column_used": column_found,
+            "status": "started",
+            "message": "Elaborazione avviata in background. Usa l'ID per tracciare il progresso."
+        }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nell'elaborazione del file: {str(e)}")
+
+async def process_batch_async(tracker: ProgressTracker, codes: List[str]):
+    """Process batch search in background with progress tracking"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            for code in codes:
+                # Update progress
+                tracker.update_progress(f"Cercando {code}...")
+                
+                # Perform search
+                result = await find_product_image(session, code)
+                
+                # Update tracker based on result
+                tracker.update_progress(code, result.found)
+                
+                # Small delay to prevent overwhelming the server
+                await asyncio.sleep(0.1)
+            
+            # Complete the task
+            tracker.complete()
+    
+    except Exception as e:
+        tracker.error(str(e))
 
 @api_router.post("/download-batch-zip")
 async def download_batch_zip(file: UploadFile = File(...)):
