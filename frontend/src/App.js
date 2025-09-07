@@ -106,7 +106,7 @@ function App() {
     }
   };
 
-  // Progress tracking function
+  // Progress tracking function with better result handling
   const pollProgress = async (taskId) => {
     try {
       const response = await fetch(`${API}/progress/${taskId}`);
@@ -119,7 +119,7 @@ function App() {
       setProgressData(progress);
       
       if (progress.status === "completed") {
-        // Get final results
+        // Get final results and prepare for download
         setShowProgress(false);
         setBatchLoading(false);
         
@@ -131,6 +131,12 @@ function App() {
         });
         
         setCurrentTaskId(null);
+        
+        // Keep progress data available for download button
+        setTimeout(() => {
+          setProgressData(prev => ({...prev, status: "completed"}));
+        }, 100);
+        
       } else if (progress.status === "error") {
         setShowProgress(false);
         setBatchLoading(false);
