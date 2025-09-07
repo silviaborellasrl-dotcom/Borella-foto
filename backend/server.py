@@ -550,17 +550,23 @@ async def process_batch_async(tracker: ProgressTracker, codes: List[str]):
     try:
         async with aiohttp.ClientSession() as session:
             for code in codes:
-                # Update progress
+                # Update progress - searching
                 tracker.update_progress(f"Cercando {code}...")
                 
                 # Perform search
                 result = await find_product_image(session, code)
                 
-                # Update tracker based on result
-                tracker.update_progress(code, result.found)
+                # Update tracker based on result - this will increment completed_items
+                if result.found:
+                    tracker.found_items.append(code)
+                else:
+                    tracker.not_found_items.append(code)
+                    
+                tracker.completed_items += 1
+                tracker.current_item = f"Completato {code} ({'trovato' if result.found else 'non trovato'})"
                 
                 # Small delay to prevent overwhelming the server
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.2)
             
             # Complete the task
             tracker.complete()
