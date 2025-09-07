@@ -99,6 +99,8 @@ class ProgressTracker:
             "current_item": self.current_item,
             "found_count": len(self.found_items),
             "not_found_count": len(self.not_found_items),
+            "found_items": self.found_items,
+            "not_found_items": self.not_found_items,
             "elapsed_time": str(datetime.now() - self.start_time).split('.')[0]
         }
 
