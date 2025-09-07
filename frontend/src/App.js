@@ -26,6 +26,11 @@ function App() {
   const [batchResult, setBatchResult] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
+  
+  // Progress tracking state
+  const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [progressData, setProgressData] = useState(null);
+  const [showProgress, setShowProgress] = useState(false);
 
   // Single product search
   const handleSingleSearch = async () => {
