@@ -445,8 +445,17 @@ def main():
     
     tester = ImageSearchAPITester()
     
-    # Test all endpoints
-    tests = [
+    # Test all endpoints - PRIORITIZING STUCK TASKS FIRST
+    print("🚨 PRIORITY: Testing stuck tasks first as per test_plan")
+    
+    stuck_tests = [
+        tester.test_batch_search_async_known_codes,  # STUCK TASK 1
+        tester.test_progress_tracking_valid_task,    # STUCK TASK 2  
+        tester.test_download_batch_zip_known_codes,  # STUCK TASK 3
+        tester.test_complete_async_workflow,         # CRITICAL STUCK TASK
+    ]
+    
+    standard_tests = [
         tester.test_root_endpoint,
         tester.test_single_search_known_codes,
         tester.test_single_search_test_codes,
@@ -456,9 +465,21 @@ def main():
         tester.test_batch_search_test_codes,
         tester.test_batch_search_invalid_file,
         tester.test_batch_search_no_codice_column,
-        tester.test_download_batch_zip_known_codes,
-        tester.test_download_batch_zip_test_codes
+        tester.test_download_batch_zip_test_codes,
+        tester.test_batch_search_async_test_codes,
+        tester.test_progress_tracking_invalid_task,
     ]
+    
+    # Run stuck tests first
+    print("\n🔥 RUNNING STUCK TASKS FIRST:")
+    for test in stuck_tests:
+        try:
+            test()
+        except Exception as e:
+            print(f"❌ Stuck task failed with exception: {str(e)}")
+    
+    print("\n📋 RUNNING STANDARD TESTS:")
+    tests = standard_tests
     
     for test in tests:
         try:
