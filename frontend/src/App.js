@@ -370,7 +370,7 @@ function App() {
                   Ricerca Multipla da Excel
                 </CardTitle>
                 <CardDescription>
-                  Carica un file Excel con la colonna "CODICE" o "COD.PR" per cercare più immagini contemporaneamente
+                  Carica un file Excel con la colonna "CODICE", "COD.PR" o "COD.PRODOTTO" per cercare più immagini contemporaneamente
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
