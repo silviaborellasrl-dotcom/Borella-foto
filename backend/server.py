@@ -577,7 +577,7 @@ async def search_batch_async(file: UploadFile = File(...)):
         workbook = openpyxl.load_workbook(BytesIO(contents))
         sheet = workbook.active
         
-        # Find CODICE, COD.PR, or COD.PRODOTTO column
+        # Find CODICE, COD.PR, or C.ART column
         codice_col = None
         column_found = None
         
@@ -598,17 +598,17 @@ async def search_batch_async(file: UploadFile = File(...)):
                     column_found = "COD.PR"
                     break
         
-        # Priority 3: COD.PRODOTTO
+        # Priority 3: C.ART
         if codice_col is None:
             for col in range(1, sheet.max_column + 1):
                 cell_value = sheet.cell(row=1, column=col).value
-                if cell_value and str(cell_value).upper() == "COD.PRODOTTO":
+                if cell_value and str(cell_value).upper() == "C.ART":
                     codice_col = col
-                    column_found = "COD.PRODOTTO"
+                    column_found = "C.ART"
                     break
         
         if codice_col is None:
-            raise HTTPException(status_code=400, detail="Colonna 'CODICE', 'COD.PR' o 'COD.PRODOTTO' non trovata nel file Excel")
+            raise HTTPException(status_code=400, detail="Colonna 'CODICE', 'COD.PR' o 'C.ART' non trovata nel file Excel")
         
         # Extract codes
         codes = []
