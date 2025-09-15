@@ -88,6 +88,7 @@ function AppOptimized() {
 
   // Funzione per aprire il modal zoom
   const openImageModal = (imageUrl, code) => {
+    console.log("Apertura modal per:", code, imageUrl);
     setModalImageUrl(imageUrl);
     setModalImageCode(code);
     setShowImageModal(true);
