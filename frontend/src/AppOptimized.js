@@ -1,0 +1,490 @@
+import React, { useState, useEffect } from "react";
+import "./App.css";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://productfinder-3.preview.emergentagent.com";
+const API = `${BACKEND_URL}/api`;
+
+// Componenti semplificati per caricamento veloce
+const SimpleButton = ({ onClick, disabled, className, children }) => (
+  <button 
+    onClick={onClick}
+    disabled={disabled}
+    className={`px-4 py-2 rounded-lg font-medium transition-all ${className} ${
+      disabled 
+        ? 'bg-gray-300 cursor-not-allowed' 
+        : 'bg-blue-600 hover:bg-blue-700 text-white active:transform active:scale-95'
+    }`}
+  >
+    {children}
+  </button>
+);
+
+const SimpleInput = ({ type = "text", placeholder, value, onChange, onKeyPress, className, accept, files }) => (
+  <input
+    type={type}
+    placeholder={placeholder}
+    value={value}
+    onChange={onChange}
+    onKeyPress={onKeyPress}
+    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${className}`}
+    accept={accept}
+    multiple={files}
+  />
+);
+
+const SimpleCard = ({ title, children, className }) => (
+  <div className={`bg-white rounded-lg shadow-lg border-0 backdrop-blur-sm ${className}`}>
+    {title && (
+      <div className="p-6 pb-0">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          {title}
+        </h3>
+      </div>
+    )}
+    <div className="p-6">{children}</div>
+  </div>
+);
+
+const ProgressBar = ({ percentage, found, notFound }) => (
+  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-6">
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-5 h-5 bg-blue-600 rounded animate-pulse"></div>
+      <span className="text-blue-800 font-medium">Elaborazione in corso...</span>
+    </div>
+    <div className="space-y-3">
+      <div className="flex justify-between text-sm">
+        <span className="text-blue-700">Progresso: {percentage}%</span>
+        <div className="flex gap-4">
+          <span className="text-green-600">✅ Trovati: {found}</span>
+          <span className="text-orange-600">❌ Non trovati: {notFound}</span>
+        </div>
+      </div>
+      <div className="w-full bg-blue-100 rounded-full h-3">
+        <div 
+          className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+    </div>
+  </div>
+);
+
+function AppOptimized() {
+  // Stati
+  const [singleCode, setSingleCode] = useState("");
+  const [singleResult, setSingleResult] = useState(null);
+  const [singleLoading, setSingleLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [batchResult, setBatchResult] = useState(null);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [progressData, setProgressData] = useState(null);
+  const [showProgress, setShowProgress] = useState(false);
+  const [activeTab, setActiveTab] = useState("single");
+
+  // Ricerca singola
+  const handleSingleSearch = async () => {
+    if (!singleCode.trim()) return;
+    setSingleLoading(true);
+    try {
+      const response = await fetch(`${API}/search-single`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: singleCode.trim() })
+      });
+      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const data = await response.json();
+      setSingleResult(data);
+    } catch (error) {
+      setSingleResult({
+        code: singleCode,
+        found: false,
+        error: "Errore nella ricerca"
+      });
+    } finally {
+      setSingleLoading(false);
+    }
+  };
+
+  // Download singolo
+  const handleSingleDownload = async () => {
+    if (!singleResult?.image_url) return;
+    try {
+      const filename = `${singleResult.code}${singleResult.format}`;
+      const response = await fetch(
+        `${API}/download-image?url=${encodeURIComponent(singleResult.image_url)}&filename=${encodeURIComponent(filename)}`
+      );
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Errore nel download:", error);
+    }
+  };
+
+  // Gestione file
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file && file.name.endsWith('.xlsx')) {
+      setSelectedFile(file);
+      setBatchResult(null);
+    } else {
+      alert('Seleziona un file Excel (.xlsx)');
+      event.target.value = '';
+    }
+  };
+
+  // Polling progresso
+  const pollProgress = async (taskId) => {
+    try {
+      const response = await fetch(`${API}/progress/${taskId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const progress = await response.json();
+      setProgressData(progress);
+      
+      if (progress.status === "completed") {
+        setShowProgress(false);
+        setBatchLoading(false);
+        setBatchResult({
+          total_codes: progress.total_items,
+          found_codes: progress.found_items || [],
+          not_found_codes: progress.not_found_items || [],
+          results: []
+        });
+        setCurrentTaskId(null);
+        setTimeout(() => {
+          setProgressData(prev => ({...prev, status: "completed"}));
+        }, 100);
+      } else if (progress.status === "error") {
+        setShowProgress(false);
+        setBatchLoading(false);
+        setBatchResult({
+          total_codes: progress.total_items,
+          found_codes: [],
+          not_found_codes: [],
+          error: progress.current_item
+        });
+        setCurrentTaskId(null);
+      } else {
+        setTimeout(() => pollProgress(taskId), 1000);
+      }
+    } catch (error) {
+      setShowProgress(false);
+      setBatchLoading(false);
+      setCurrentTaskId(null);
+    }
+  };
+
+  // Ricerca batch
+  const handleBatchSearch = async () => {
+    if (!selectedFile) return;
+    setBatchLoading(true);
+    setShowProgress(true);
+    setBatchResult(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const response = await fetch(`${API}/search-batch-async`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      if (data.task_id) {
+        setCurrentTaskId(data.task_id);
+        pollProgress(data.task_id);
+      } else {
+        throw new Error("Task ID non ricevuto");
+      }
+    } catch (error) {
+      setBatchResult({
+        total_codes: 0,
+        found_codes: [],
+        not_found_codes: [],
+        error: "Errore nell'avvio dell'elaborazione"
+      });
+      setBatchLoading(false);
+      setShowProgress(false);
+    }
+  };
+
+  // Download ZIP
+  const handleBatchDownload = async () => {
+    if (!selectedFile) return;
+    setDownloadLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const response = await fetch(`${API}/download-batch-zip`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'immagini_prodotti.zip');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Errore nel download del file ZIP");
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="container mx-auto p-6 max-w-6xl">
+        {/* Header veloce */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+              <div className="w-6 h-6 bg-white rounded" style={{clipPath: 'polygon(0% 0%, 100% 50%, 0% 100%)'}}></div>
+            </div>
+            <h1 className="text-3xl font-bold text-slate-800">Sistema Ricerca Immagini</h1>
+          </div>
+          <p className="text-slate-600 text-lg max-w-2xl mx-auto">
+            Cerca e scarica immagini prodotti utilizzando codici singoli o caricando file Excel
+          </p>
+        </div>
+
+        {/* Tab navigation semplificata */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-lg p-1 shadow-lg">
+            <button
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                activeTab === "single" 
+                  ? "bg-blue-600 text-white shadow-md" 
+                  : "text-gray-600 hover:text-blue-600"
+              }`}
+              onClick={() => setActiveTab("single")}
+            >
+              🔍 Ricerca Singola
+            </button>
+            <button
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                activeTab === "batch" 
+                  ? "bg-blue-600 text-white shadow-md" 
+                  : "text-gray-600 hover:text-blue-600"
+              }`}
+              onClick={() => setActiveTab("batch")}
+            >
+              📁 Ricerca Multipla
+            </button>
+          </div>
+        </div>
+
+        {/* Contenuto Tab Singola */}
+        {activeTab === "single" && (
+          <SimpleCard 
+            title="🔍 Ricerca Immagine Singola"
+            className="mb-6"
+          >
+            <p className="text-gray-600 mb-4">Inserisci un codice prodotto per cercare l'immagine corrispondente</p>
+            
+            <div className="flex gap-3 mb-4">
+              <SimpleInput
+                placeholder="Inserisci codice prodotto..."
+                value={singleCode}
+                onChange={(e) => setSingleCode(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSingleSearch()}
+                className="flex-1"
+              />
+              <SimpleButton 
+                onClick={handleSingleSearch}
+                disabled={!singleCode.trim() || singleLoading}
+                className="px-6"
+              >
+                {singleLoading ? "⏳ Cerca..." : "🔍 Cerca"}
+              </SimpleButton>
+            </div>
+
+            {singleResult && (
+              <div className="mt-4">
+                {singleResult.found ? (
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-green-800 font-medium">✅ Immagine trovata!</span>
+                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                        {singleResult.format}
+                      </span>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Codice:</p>
+                        <p className="font-mono font-semibold text-gray-800 mb-3">{singleResult.code}</p>
+                        <SimpleButton 
+                          onClick={handleSingleDownload}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          💾 Scarica Immagine
+                        </SimpleButton>
+                      </div>
+                      
+                      <div className="flex items-center justify-center">
+                        <div className="w-full max-w-sm bg-white rounded-lg shadow-md overflow-hidden">
+                          <img
+                            src={singleResult.image_url}
+                            alt={`Prodotto ${singleResult.code}`}
+                            className="w-full h-48 object-cover"
+                            loading="lazy"
+                          />
+                          <div className="p-3">
+                            <p className="text-sm text-gray-600 text-center">Anteprima immagine</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <p className="text-red-800">
+                      <strong>❌ Codice: {singleResult.code}</strong><br />
+                      {singleResult.error || 'Immagine non trovata'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </SimpleCard>
+        )}
+
+        {/* Contenuto Tab Batch */}
+        {activeTab === "batch" && (
+          <SimpleCard 
+            title="📁 Ricerca Multipla da Excel"
+            className="mb-6"
+          >
+            <p className="text-gray-600 mb-4">
+              Carica un file Excel con la colonna "CODICE", "COD.PR" o "C.ART" per cercare più immagini contemporaneamente
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <SimpleInput
+                  type="file"
+                  accept=".xlsx"
+                  onChange={handleFileSelect}
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  Formato supportato: .xlsx con colonna "CODICE", "COD.PR" o "C.ART"
+                </p>
+              </div>
+
+              {selectedFile && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <p className="text-blue-800 font-medium">📄 File selezionato:</p>
+                  <p className="text-blue-700">{selectedFile.name}</p>
+                </div>
+              )}
+
+              {/* Progress Bar */}
+              {showProgress && progressData && (
+                <ProgressBar 
+                  percentage={progressData.progress_percentage || 0}
+                  found={progressData.found_count || 0}
+                  notFound={progressData.not_found_count || 0}
+                />
+              )}
+
+              <div className="flex gap-3">
+                <SimpleButton 
+                  onClick={handleBatchSearch}
+                  disabled={!selectedFile || batchLoading}
+                >
+                  {batchLoading ? "⏳ Analizza..." : "🔍 Analizza File"}
+                </SimpleButton>
+
+                {((batchResult && batchResult.found_codes?.length > 0) || 
+                  (!batchResult && progressData && progressData.status === "completed" && progressData.found_count > 0)) && (
+                  <SimpleButton 
+                    onClick={handleBatchDownload}
+                    disabled={downloadLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {downloadLoading ? "⏳ Download..." : `💾 Scarica ZIP ${
+                      batchResult ? `(${batchResult.found_codes.length})` : 
+                      progressData ? `(${progressData.found_count})` : ''
+                    }`}
+                  </SimpleButton>
+                )}
+              </div>
+            </div>
+
+            {batchResult && (
+              <div className="space-y-4 mt-6">
+                <hr className="border-gray-200" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-800">{batchResult.total_codes}</p>
+                    <p className="text-sm text-gray-600">Codici totali</p>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-green-700">{batchResult.found_codes?.length || 0}</p>
+                    <p className="text-sm text-green-600">Immagini trovate</p>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-red-700">{batchResult.not_found_codes?.length || 0}</p>
+                    <p className="text-sm text-red-600">Non trovate</p>
+                  </div>
+                </div>
+
+                {batchResult.not_found_codes?.length > 0 && (
+                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                    <p className="text-amber-800 font-medium mb-2">⚠️ Codici non trovati:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {batchResult.not_found_codes.map((code, index) => (
+                        <span key={index} className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-sm">
+                          {code}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {batchResult.found_codes?.length > 0 && (
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <p className="text-green-800 font-medium mb-2">✅ Immagini disponibili per il download:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {batchResult.found_codes.map((code, index) => (
+                        <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                          {code}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </SimpleCard>
+        )}
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-gray-600">
+          <p className="text-sm">
+            Sistema per la ricerca e download immagini prodotti • Borella Casalinghi
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AppOptimized;
