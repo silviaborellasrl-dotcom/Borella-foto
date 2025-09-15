@@ -564,27 +564,68 @@ async def execute_batch_search(task_id: str):
 
 @api_router.post("/search-batch-async")
 async def search_batch_async(file: UploadFile = File(...)):
-    """Versione asincrona che avvia l'elaborazione in background"""
-    if not file.filename.endswith('.xlsx'):
-        raise HTTPException(status_code=400, detail="Il file deve essere in formato .xlsx")
+    """Versione asincrona che avvia l'elaborazione in background con validazione migliorata"""
+    
+    # Validazione formato file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Nome file non valido")
+    
+    if not file.filename.lower().endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail=f"Formato file non supportato. Il file '{file.filename}' deve essere in formato Excel (.xlsx)")
+    
+    # Validazione dimensione file (max 10MB)
+    file_size = 0
+    contents = await file.read()
+    file_size = len(contents)
+    
+    if file_size == 0:
+        raise HTTPException(status_code=400, detail="File vuoto o corrotto")
+    
+    if file_size > 10 * 1024 * 1024:  # 10MB
+        raise HTTPException(status_code=400, detail="File troppo grande. Dimensione massima: 10MB")
     
     # Generate unique task ID
     task_id = str(uuid.uuid4())
     
     try:
-        # Read Excel file
-        contents = await file.read()
-        workbook = openpyxl.load_workbook(BytesIO(contents))
-        sheet = workbook.active
+        # Tentativo di lettura del file Excel
+        try:
+            workbook = openpyxl.load_workbook(BytesIO(contents))
+            sheet = workbook.active
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Impossibile leggere il file Excel. Assicurati che sia un file .xlsx valido e non corrotto. Errore: {str(e)}"
+            )
         
-        # Find CODICE, COD.PR, or C.ART column
+        # Verifica che il foglio non sia vuoto
+        if sheet.max_row < 2:
+            raise HTTPException(
+                status_code=400, 
+                detail="Il file Excel sembra essere vuoto o non contiene dati. Assicurati che ci siano almeno 2 righe (intestazione + dati)"
+            )
+        
+        if sheet.max_column < 1:
+            raise HTTPException(
+                status_code=400, 
+                detail="Il file Excel non contiene colonne. Assicurati che il file sia formattato correttamente"
+            )
+        
+        # Find CODICE, COD.PR, or C.ART column con messaggi di errore migliorati
         codice_col = None
         column_found = None
+        available_columns = []
+        
+        # Raccogli tutte le colonne disponibili per il messaggio di errore
+        for col in range(1, sheet.max_column + 1):
+            cell_value = sheet.cell(row=1, column=col).value
+            if cell_value:
+                available_columns.append(str(cell_value).strip())
         
         # Priority 1: CODICE
         for col in range(1, sheet.max_column + 1):
             cell_value = sheet.cell(row=1, column=col).value
-            if cell_value and str(cell_value).upper() == "CODICE":
+            if cell_value and str(cell_value).upper().strip() == "CODICE":
                 codice_col = col
                 column_found = "CODICE"
                 break
@@ -593,7 +634,7 @@ async def search_batch_async(file: UploadFile = File(...)):
         if codice_col is None:
             for col in range(1, sheet.max_column + 1):
                 cell_value = sheet.cell(row=1, column=col).value
-                if cell_value and str(cell_value).upper() == "COD.PR":
+                if cell_value and str(cell_value).upper().strip() == "COD.PR":
                     codice_col = col
                     column_found = "COD.PR"
                     break
@@ -602,41 +643,81 @@ async def search_batch_async(file: UploadFile = File(...)):
         if codice_col is None:
             for col in range(1, sheet.max_column + 1):
                 cell_value = sheet.cell(row=1, column=col).value
-                if cell_value and str(cell_value).upper() == "C.ART":
+                if cell_value and str(cell_value).upper().strip() == "C.ART":
                     codice_col = col
                     column_found = "C.ART"
                     break
         
         if codice_col is None:
-            raise HTTPException(status_code=400, detail="Colonna 'CODICE', 'COD.PR' o 'C.ART' non trovata nel file Excel")
+            if not available_columns:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Il file Excel non contiene intestazioni di colonna. Assicurati che la prima riga contenga i nomi delle colonne"
+                )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Colonna richiesta non trovata. Il sistema cerca le colonne: 'CODICE', 'COD.PR' o 'C.ART'. "
+                           f"Colonne trovate nel tuo file: {', '.join(available_columns)}. "
+                           f"Rinomina una delle tue colonne con uno dei nomi supportati."
+                )
         
-        # Extract codes
+        # Extract codes con validazione
         codes = []
+        empty_rows = 0
+        invalid_codes = []
+        
         for row in range(2, sheet.max_row + 1):
             cell_value = sheet.cell(row=row, column=codice_col).value
-            if cell_value:
-                codes.append(str(cell_value).strip())
+            if cell_value is not None:
+                code_str = str(cell_value).strip()
+                if code_str:
+                    codes.append(code_str)
+                else:
+                    empty_rows += 1
+            else:
+                empty_rows += 1
         
         if not codes:
-            raise HTTPException(status_code=400, detail="Nessun codice trovato nella colonna")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Nessun codice prodotto valido trovato nella colonna '{column_found}'. "
+                       f"Assicurati che la colonna contenga codici prodotto validi (non vuoti) a partire dalla riga 2"
+            )
         
-        # Initialize progress tracker
+        if len(codes) > 1000:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Troppi codici nel file ({len(codes)}). Limite massimo: 1000 codici per elaborazione"
+            )
+        
+        # Log informazioni per debug
+        logging.info(f"File processato: {file.filename}, Colonna: {column_found}, Codici validi: {len(codes)}, Righe vuote: {empty_rows}")
+        
+        # Create progress tracker
         tracker = ProgressTracker(task_id, len(codes))
         progress_storage[task_id] = tracker
         
-        # Start background task
+        # Start background processing
         asyncio.create_task(process_batch_async(tracker, codes))
         
         return {
             "task_id": task_id,
+            "message": f"Elaborazione avviata con successo",
             "total_codes": len(codes),
             "column_used": column_found,
-            "status": "started",
-            "message": "Elaborazione avviata in background. Usa l'ID per tracciare il progresso."
+            "empty_rows_skipped": empty_rows
         }
-    
+            
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors)
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore nell'elaborazione del file: {str(e)}")
+        logging.error(f"Errore imprevisto nell'elaborazione del file {file.filename}: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Errore interno durante l'elaborazione del file. Se il problema persiste, contatta l'assistenza. Dettagli: {str(e)}"
+        )
 
 async def process_batch_async(tracker: ProgressTracker, codes: List[str]):
     """Process batch search in background with progress tracking"""
