@@ -81,7 +81,23 @@ function AppOptimized() {
   const [currentTaskId, setCurrentTaskId] = useState(null);
   const [progressData, setProgressData] = useState(null);
   const [showProgress, setShowProgress] = useState(false);
-  const [activeTab, setActiveTab] = useState("single");
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState("");
+  const [modalImageCode, setModalImageCode] = useState("");
+
+  // Funzione per aprire il modal zoom
+  const openImageModal = (imageUrl, code) => {
+    setModalImageUrl(imageUrl);
+    setModalImageCode(code);
+    setShowImageModal(true);
+  };
+
+  // Funzione per chiudere il modal
+  const closeImageModal = () => {
+    setShowImageModal(false);
+    setModalImageUrl("");
+    setModalImageCode("");
+  };
 
   // Ricerca singola
   const handleSingleSearch = async () => {
