@@ -340,14 +340,31 @@ function AppOptimized() {
                       
                       <div className="flex items-center justify-center">
                         <div className="w-full max-w-sm bg-white rounded-lg shadow-md overflow-hidden">
-                          <img
-                            src={singleResult.image_url}
-                            alt={`Prodotto ${singleResult.code}`}
-                            className="w-full h-48 object-cover"
-                            loading="lazy"
-                          />
-                          <div className="p-3">
-                            <p className="text-sm text-gray-600 text-center">Anteprima immagine</p>
+                          <div className="relative group">
+                            <img
+                              src={singleResult.image_url}
+                              alt={`Prodotto ${singleResult.code}`}
+                              className="w-full h-64 object-contain bg-gray-50 cursor-pointer transition-transform duration-200 group-hover:scale-105"
+                              loading="lazy"
+                              onClick={() => window.open(singleResult.image_url, '_blank')}
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik02MCA2MEgxNDBWMTQwSDYwVjYwWiIgZmlsbD0iI0Q1RDdEQSIvPgo8L3N2Zz4K';
+                              }}
+                            />
+                            {/* Overlay per indicare che è cliccabile */}
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                              <div className="bg-white bg-opacity-90 rounded-full p-2">
+                                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-sm text-gray-600 text-center mb-2">Anteprima immagine • Clicca per ingrandire</p>
+                            <div className="text-xs text-gray-500 text-center">
+                              Formato: {singleResult.format}
+                            </div>
                           </div>
                         </div>
                       </div>
