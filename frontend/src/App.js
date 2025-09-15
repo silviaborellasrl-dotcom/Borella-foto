@@ -1,13 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import "./App.css";
-import { Search, Download, Upload, AlertCircle, CheckCircle, Loader2, Image as ImageIcon, Clock, TrendingUp } from "lucide-react";
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Alert, AlertDescription } from "./components/ui/alert";
-import { Badge } from "./components/ui/badge";
-import { Separator } from "./components/ui/separator";
+
+// Lazy load delle icone per ridurre bundle iniziale
+const Search = lazy(() => import("lucide-react").then(module => ({ default: module.Search })));
+const Download = lazy(() => import("lucide-react").then(module => ({ default: module.Download })));
+const Upload = lazy(() => import("lucide-react").then(module => ({ default: module.Upload })));
+const AlertCircle = lazy(() => import("lucide-react").then(module => ({ default: module.AlertCircle })));
+const CheckCircle = lazy(() => import("lucide-react").then(module => ({ default: module.CheckCircle })));
+const Loader2 = lazy(() => import("lucide-react").then(module => ({ default: module.Loader2 })));
+const ImageIcon = lazy(() => import("lucide-react").then(module => ({ default: module.Image })));
+const Clock = lazy(() => import("lucide-react").then(module => ({ default: module.Clock })));
+const TrendingUp = lazy(() => import("lucide-react").then(module => ({ default: module.TrendingUp })));
+
+// Componenti UI con lazy loading
+const Button = lazy(() => import("./components/ui/button").then(module => ({ default: module.Button })));
+const Input = lazy(() => import("./components/ui/input").then(module => ({ default: module.Input })));
+const Card = lazy(() => import("./components/ui/card").then(module => ({ default: module.Card })));
+const CardContent = lazy(() => import("./components/ui/card").then(module => ({ default: module.CardContent })));
+const CardDescription = lazy(() => import("./components/ui/card").then(module => ({ default: module.CardDescription })));
+const CardHeader = lazy(() => import("./components/ui/card").then(module => ({ default: module.CardHeader })));
+const CardTitle = lazy(() => import("./components/ui/card").then(module => ({ default: module.CardTitle })));
+const Tabs = lazy(() => import("./components/ui/tabs").then(module => ({ default: module.Tabs })));
+const TabsContent = lazy(() => import("./components/ui/tabs").then(module => ({ default: module.TabsContent })));
+const TabsList = lazy(() => import("./components/ui/tabs").then(module => ({ default: module.TabsList })));
+const TabsTrigger = lazy(() => import("./components/ui/tabs").then(module => ({ default: module.TabsTrigger })));
+const Alert = lazy(() => import("./components/ui/alert").then(module => ({ default: module.Alert })));
+const AlertDescription = lazy(() => import("./components/ui/alert").then(module => ({ default: module.AlertDescription })));
+const Badge = lazy(() => import("./components/ui/badge").then(module => ({ default: module.Badge })));
+const Separator = lazy(() => import("./components/ui/separator").then(module => ({ default: module.Separator })));
+
+// Componente di loading veloce
+const QuickLoader = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <h2 className="text-xl font-bold text-slate-800 mb-2">Sistema Ricerca Immagini</h2>
+      <p className="text-slate-600">Caricamento in corso...</p>
+    </div>
+  </div>
+);
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://productfinder-3.preview.emergentagent.com";
 const API = `${BACKEND_URL}/api`;
