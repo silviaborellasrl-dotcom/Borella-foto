@@ -84,6 +84,7 @@ function AppOptimized() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState("");
   const [modalImageCode, setModalImageCode] = useState("");
+  const [activeTab, setActiveTab] = useState("single");
 
   // Funzione per aprire il modal zoom
   const openImageModal = (imageUrl, code) => {
