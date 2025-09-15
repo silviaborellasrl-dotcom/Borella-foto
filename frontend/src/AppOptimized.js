@@ -466,45 +466,86 @@ function AppOptimized() {
             {batchResult && (
               <div className="space-y-4 mt-6">
                 <hr className="border-gray-200" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold text-gray-800">{batchResult.total_codes}</p>
-                    <p className="text-sm text-gray-600">Codici totali</p>
-                  </div>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold text-green-700">{batchResult.found_codes?.length || 0}</p>
-                    <p className="text-sm text-green-600">Immagini trovate</p>
-                  </div>
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold text-red-700">{batchResult.not_found_codes?.length || 0}</p>
-                    <p className="text-sm text-red-600">Non trovate</p>
-                  </div>
-                </div>
-
-                {batchResult.not_found_codes?.length > 0 && (
-                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                    <p className="text-amber-800 font-medium mb-2">⚠️ Codici non trovati:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {batchResult.not_found_codes.map((code, index) => (
-                        <span key={index} className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-sm">
-                          {code}
-                        </span>
-                      ))}
+                
+                {/* Gestione errori migliorata */}
+                {batchResult.error && (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-red-800 font-semibold mb-2">⚠️ Errore nell'elaborazione del file</h3>
+                        <p className="text-red-700 text-sm leading-relaxed">{batchResult.error}</p>
+                        
+                        {/* Suggerimenti per risolvere errori comuni */}
+                        <div className="mt-3 p-3 bg-red-100 rounded border border-red-200">
+                          <p className="text-red-800 font-medium text-sm mb-2">💡 Suggerimenti:</p>
+                          <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
+                            <li>Verifica che il file sia in formato Excel (.xlsx)</li>
+                            <li>Assicurati che la prima riga contenga una colonna chiamata "CODICE", "COD.PR" o "C.ART"</li>
+                            <li>Controlla che ci siano dati nelle righe sotto l'intestazione</li>
+                            <li>Il file non deve essere più grande di 10MB</li>
+                          </ul>
+                        </div>
+                        
+                        <button 
+                          onClick={() => setBatchResult(null)}
+                          className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                        >
+                          Chiudi e riprova
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
-
-                {batchResult.found_codes?.length > 0 && (
-                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <p className="text-green-800 font-medium mb-2">✅ Immagini disponibili per il download:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {batchResult.found_codes.map((code, index) => (
-                        <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                          {code}
-                        </span>
-                      ))}
+                
+                {/* Risultati normali (solo se non c'è errore) */}
+                {!batchResult.error && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-gray-800">{batchResult.total_codes}</p>
+                        <p className="text-sm text-gray-600">Codici totali</p>
+                      </div>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-green-700">{batchResult.found_codes?.length || 0}</p>
+                        <p className="text-sm text-green-600">Immagini trovate</p>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-red-700">{batchResult.not_found_codes?.length || 0}</p>
+                        <p className="text-sm text-red-600">Non trovate</p>
+                      </div>
                     </div>
-                  </div>
+
+                    {batchResult.not_found_codes?.length > 0 && (
+                      <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                        <p className="text-amber-800 font-medium mb-2">⚠️ Codici non trovati:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {batchResult.not_found_codes.map((code, index) => (
+                            <span key={index} className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-sm">
+                              {code}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {batchResult.found_codes?.length > 0 && (
+                      <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                        <p className="text-green-800 font-medium mb-2">✅ Immagini disponibili per il download:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {batchResult.found_codes.map((code, index) => (
+                            <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                              {code}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
