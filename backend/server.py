@@ -732,24 +732,31 @@ async def download_batch_zip(file: UploadFile = File(...)):
                 'Upgrade-Insecure-Requests': '1'
             }
             
-            async with aiohttp.ClientSession() as session:
-                with zipfile.ZipFile(zip_path, 'w') as zip_file:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                     downloaded_count = 0
                     
                     for code in codes:
-                        result = await find_product_image(session, code)
-                        
-                        if result.found and result.image_url:
-                            try:
-                                async with session.get(result.image_url, headers=headers) as response:
-                                    if response.status == 200:
-                                        image_content = await response.read()
-                                        filename = f"{code}{result.format}"
-                                        zip_file.writestr(filename, image_content)
-                                        downloaded_count += 1
-                            except Exception as e:
-                                logging.error(f"Errore nel download di {code}: {str(e)}")
-                                continue
+                        try:
+                            result = await find_product_image(session, code)
+                            
+                            if result.found and result.image_url:
+                                try:
+                                    async with session.get(result.image_url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                                        if response.status == 200:
+                                            image_content = await response.read()
+                                            filename = f"{code}{result.format}"
+                                            zip_file.writestr(filename, image_content)
+                                            downloaded_count += 1
+                                            logging.info(f"Added {filename} to ZIP ({downloaded_count}/{len(codes)})")
+                                except Exception as e:
+                                    logging.error(f"Errore nel download di {code}: {str(e)}")
+                                    continue
+                        except Exception as e:
+                            logging.error(f"Errore nella ricerca di {code}: {str(e)}")
+                            continue
+                    
+                    logging.info(f"ZIP creation completed: {downloaded_count} images added")
                     
                     if downloaded_count == 0:
                         raise HTTPException(status_code=404, detail="Nessuna immagine trovata per i codici forniti")
