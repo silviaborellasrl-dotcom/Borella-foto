@@ -368,9 +368,16 @@ function AppOptimized() {
                         <p className="font-mono font-semibold text-gray-800 mb-3">{singleResult.code}</p>
                         <SimpleButton 
                           onClick={handleSingleDownload}
-                          className="w-full bg-green-600 hover:bg-green-700"
+                          className="w-full bg-green-600 hover:bg-green-700 mb-2"
                         >
                           💾 Scarica Immagine
+                        </SimpleButton>
+                        
+                        <SimpleButton 
+                          onClick={() => openImageModal(singleResult.image_url, singleResult.code)}
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                        >
+                          🔍 Zoom Immagine
                         </SimpleButton>
                       </div>
                       
