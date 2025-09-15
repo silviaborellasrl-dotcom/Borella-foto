@@ -200,20 +200,38 @@ function AppOptimized() {
         method: 'POST',
         body: formData
       });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      // Gestione errori migliorata
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || `Errore HTTP ${response.status}`;
+        
+        // Mostra errore specifico all'utente
+        setBatchResult({
+          total_codes: 0,
+          found_codes: [],
+          not_found_codes: [],
+          error: errorMessage
+        });
+        setBatchLoading(false);
+        setShowProgress(false);
+        return;
+      }
+      
       const data = await response.json();
       if (data.task_id) {
         setCurrentTaskId(data.task_id);
         pollProgress(data.task_id);
       } else {
-        throw new Error("Task ID non ricevuto");
+        throw new Error("Task ID non ricevuto dal server");
       }
     } catch (error) {
+      console.error("Errore nella ricerca batch:", error);
       setBatchResult({
         total_codes: 0,
         found_codes: [],
         not_found_codes: [],
-        error: "Errore nell'avvio dell'elaborazione"
+        error: error.message || "Errore di connessione al server"
       });
       setBatchLoading(false);
       setShowProgress(false);
