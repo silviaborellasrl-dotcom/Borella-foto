@@ -37,7 +37,7 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 # Base URL for images
-IMAGE_BASE_URL = "https://www.borellacasalinghi.it/foto-prodotti/cartella-immagini"
+IMAGE_BASE_URL = "https://borellacasalinghi.it/foto-prodotti/cartella-immagini"
 SUPPORTED_FORMATS = [".jpg", ".png", ".webp", ".tif"]
 
 # Define Models
