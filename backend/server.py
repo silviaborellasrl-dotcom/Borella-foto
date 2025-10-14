@@ -37,7 +37,17 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 # Base URL for images
-IMAGE_BASE_URL = "https://borellacasalinghi.it/foto-prodotti/cartella-immagini"
+# Percorsi da testare in ordine di priorità  
+POSSIBLE_IMAGE_PATHS = [
+    "https://www.borellacasalinghi.it/foto-prodotti/cartella-immagini",
+    "https://borellacasalinghi.it/foto-prodotti/cartella-immagini", 
+    "https://www.borellacasalinghi.it/wp-content/uploads/foto-prodotti",
+    "https://borellacasalinghi.it/wp-content/uploads/foto-prodotti",
+    "https://www.borellacasalinghi.it/images/prodotti",
+    "https://borellacasalinghi.it/images/prodotti"
+]
+
+IMAGE_BASE_URL = POSSIBLE_IMAGE_PATHS[0]  # Default
 SUPPORTED_FORMATS = [".jpg", ".png", ".webp", ".tif"]
 
 # Define Models
