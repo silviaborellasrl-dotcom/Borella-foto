@@ -143,36 +143,24 @@ async def find_product_image(session: aiohttp.ClientSession, code: str) -> Image
     max_checks = 50  # Increased to ensure all basic formats are tested
     check_count = 0
     
-    # Test tutti i possibili percorsi base
-    for base_url in POSSIBLE_IMAGE_PATHS:
-        # PRIORITY 1: Test basic exact match for ALL formats first
-        # This ensures simple files like "25627.JPG" are always found
-        for format_ext in format_extensions:
-            if check_count >= max_checks:
-                break
-                
-            exact_match_pattern = f"{code}{format_ext}"
-            encoded_filename = urllib.parse.quote(exact_match_pattern)
-            image_url = f"{base_url}/{encoded_filename}"
+    # PRIORITY 1: Test basic exact match for ALL formats first
+    # This ensures simple files like "25627.JPG" are always found
+    for format_ext in format_extensions:
+        if check_count >= max_checks:
+            break
             
-            check_count += 1
-            if await check_image_exists(session, image_url):
-                # Aggiorna il BASE_URL globale se troviamo l'immagine in un percorso diverso
-                global IMAGE_BASE_URL
-                if base_url != IMAGE_BASE_URL:
-                    IMAGE_BASE_URL = base_url
-                    logging.info(f"Percorso immagini aggiornato a: {IMAGE_BASE_URL}")
-                
-                return ImageSearchResult(
-                    code=code,
-                    found=True,
-                    image_url=image_url,
-                    format=format_ext
-                )
+        exact_match_pattern = f"{code}{format_ext}"
+        encoded_filename = urllib.parse.quote(exact_match_pattern)
+        image_url = f"{IMAGE_BASE_URL}/{encoded_filename}"
         
-        # Se abbiamo trovato il percorso giusto, non continuare con gli altri
-        if check_count >= 10:  # Se abbiamo fatto molti tentativi, proviamo il prossimo base_url
-            check_count = 0  # Reset per il prossimo base_url
+        check_count += 1
+        if await check_image_exists(session, image_url):
+            return ImageSearchResult(
+                code=code,
+                found=True,
+                image_url=image_url,
+                format=format_ext
+            )
     
     # PRIORITY 2: Test variant patterns (parentheses) for ALL formats
     for format_ext in format_extensions:
