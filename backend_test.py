@@ -17,40 +17,39 @@ class PhotoRenamerAPITester:
         """Run a single API test"""
         url = f"{self.api_url}/{endpoint}" if endpoint else f"{self.api_url}/"
         headers = {}
-        
+        if data and not files:
+            headers['Content-Type'] = 'application/json'
+
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
+        print(f"   URL: {url}")
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers)
+                response = requests.get(url, headers=headers, timeout=30)
             elif method == 'POST':
                 if files:
-                    response = requests.post(url, files=files, data=data)
-                elif data:
-                    headers['Content-Type'] = 'application/json'
-                    response = requests.post(url, json=data, headers=headers)
+                    response = requests.post(url, files=files, timeout=60)
                 else:
-                    response = requests.post(url, headers=headers)
-            elif method == 'DELETE':
-                response = requests.delete(url, headers=headers)
+                    response = requests.post(url, json=data, headers=headers, timeout=30)
 
             success = response.status_code == expected_status
             if success:
                 self.tests_passed += 1
                 print(f"✅ Passed - Status: {response.status_code}")
                 try:
-                    return success, response.json()
+                    response_data = response.json()
+                    return success, response_data
                 except:
-                    return success, response.content
+                    return success, {}
             else:
                 print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
                 try:
-                    print(f"Response: {response.json()}")
+                    error_detail = response.json()
+                    print(f"   Error: {error_detail}")
                 except:
-                    print(f"Response: {response.text}")
-
-            return success, {}
+                    print(f"   Error: {response.text[:200]}")
+                return False, {}
 
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
