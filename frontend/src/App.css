@@ -1,34 +1,83 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
-}
+/* App specific styles */
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
-
-.App-header {
-    background-color: #0f0f10;
+.App {
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
 }
 
-.App-link {
-    color: #61dafb;
+/* Custom button glow effect */
+.btn-glow {
+    box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.4);
+    transition: all 0.2s ease;
 }
 
-@keyframes App-logo-spin {
+.btn-glow:hover {
+    box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.6);
+    transform: translateY(-1px);
+}
+
+/* Table row hover effect */
+.table-row-hover {
+    transition: background-color 0.15s ease;
+}
+
+.table-row-hover:hover {
+    background-color: rgba(39, 39, 42, 0.5);
+}
+
+/* File item animation */
+.file-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
     from {
-        transform: rotate(0deg);
+        opacity: 0;
+        transform: translateX(-10px);
     }
     to {
-        transform: rotate(360deg);
+        opacity: 1;
+        transform: translateX(0);
     }
+}
+
+/* Result card animation */
+.result-card {
+    animation: fadeUp 0.4s ease-out;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(to right, #fff, #a1a1aa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Custom scrollbar for specific elements */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
 }
