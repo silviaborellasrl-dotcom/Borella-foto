@@ -7,13 +7,13 @@ import {
   Upload, 
   FileImage, 
   Download, 
-  RefreshCw, 
   CheckCircle2, 
   XCircle, 
   Loader2,
   Table2,
   Zap,
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -24,29 +24,27 @@ const API = `${BACKEND_URL}/api`;
 
 function App() {
   const [mappings, setMappings] = useState([]);
-  const [loadingMappings, setLoadingMappings] = useState(true);
+  const [loadingMappings, setLoadingMappings] = useState(false);
   const [files, setFiles] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingExcel, setIsDraggingExcel] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [excelLoaded, setExcelLoaded] = useState(false);
 
-  // Fetch Excel mappings
-  const fetchMappings = useCallback(async (refresh = false) => {
-    setLoadingMappings(true);
+  // Fetch existing mappings on load
+  const fetchMappings = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/excel-mapping`, {
-        params: { refresh }
-      });
-      setMappings(response.data.mappings);
-      toast.success(`${response.data.total} mappature caricate`);
+      const response = await axios.get(`${API}/excel-mapping`);
+      if (response.data.total > 0) {
+        setMappings(response.data.mappings);
+        setExcelLoaded(true);
+      }
     } catch (error) {
       console.error("Error fetching mappings:", error);
-      toast.error("Errore nel caricamento delle mappature");
-    } finally {
-      setLoadingMappings(false);
     }
   }, []);
 
@@ -54,7 +52,71 @@ function App() {
     fetchMappings();
   }, [fetchMappings]);
 
-  // Handle drag events
+  // Handle Excel upload
+  const handleExcelUpload = async (file) => {
+    if (!file) return;
+    
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      toast.error("Seleziona un file Excel (.xlsx o .xls)");
+      return;
+    }
+
+    setLoadingMappings(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${API}/upload-excel`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setMappings(response.data.mappings);
+      setExcelLoaded(true);
+      toast.success(`${response.data.total} mappature caricate con successo!`);
+    } catch (error) {
+      console.error("Error uploading Excel:", error);
+      toast.error(error.response?.data?.detail || "Errore nel caricamento del file Excel");
+    } finally {
+      setLoadingMappings(false);
+    }
+  };
+
+  // Handle Excel drag events
+  const handleExcelDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingExcel(true);
+  }, []);
+
+  const handleExcelDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingExcel(false);
+  }, []);
+
+  const handleExcelDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingExcel(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const excelFile = droppedFiles.find(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+    
+    if (excelFile) {
+      handleExcelUpload(excelFile);
+    } else {
+      toast.error("Seleziona un file Excel (.xlsx o .xls)");
+    }
+  }, []);
+
+  const handleExcelInput = useCallback((e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleExcelUpload(file);
+    }
+    e.target.value = '';
+  }, []);
+
+  // Handle image drag events
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -114,6 +176,11 @@ function App() {
       return;
     }
 
+    if (!excelLoaded) {
+      toast.error("Carica prima il file Excel con le mappature");
+      return;
+    }
+
     setProcessing(true);
     setUploadProgress(0);
     setResults(null);
@@ -143,7 +210,7 @@ function App() {
       }
     } catch (error) {
       console.error("Error processing images:", error);
-      toast.error("Errore nell'elaborazione delle immagini");
+      toast.error(error.response?.data?.detail || "Errore nell'elaborazione delle immagini");
     } finally {
       setProcessing(false);
       setUploadProgress(0);
@@ -212,17 +279,12 @@ function App() {
               <p className="text-xs text-zinc-500 font-mono">EXCEL → IMAGE MAPPER</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchMappings(true)}
-            disabled={loadingMappings}
-            className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700"
-            data-testid="refresh-mappings-btn"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loadingMappings ? 'animate-spin' : ''}`} />
-            Aggiorna Excel
-          </Button>
+          {excelLoaded && (
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span className="text-zinc-400 font-mono">{mappings.length} mappature</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -230,20 +292,81 @@ function App() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Left Panel - Upload Zone */}
+          {/* Left Panel - Upload Zones */}
           <div className="lg:col-span-5 space-y-6">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              {/* Upload Zone */}
+              {/* Excel Upload Zone */}
+              <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 via-transparent to-transparent" />
+                
+                <h2 className="font-heading font-bold text-lg mb-4 flex items-center gap-2 relative">
+                  <FileSpreadsheet className="w-5 h-5 text-amber-500" />
+                  1. Carica File Excel
+                  {excelLoaded && <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />}
+                </h2>
+
+                <div
+                  onDragOver={handleExcelDragOver}
+                  onDragLeave={handleExcelDragLeave}
+                  onDrop={handleExcelDrop}
+                  className={`
+                    relative border-2 border-dashed rounded-xl p-6
+                    flex flex-col items-center justify-center cursor-pointer
+                    transition-all duration-300
+                    ${isDraggingExcel 
+                      ? 'border-amber-500 bg-amber-500/10' 
+                      : excelLoaded 
+                        ? 'border-green-500/30 bg-green-500/5'
+                        : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/30 hover:bg-zinc-900/50'
+                    }
+                  `}
+                  data-testid="excel-dropzone"
+                >
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleExcelInput}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    data-testid="excel-input"
+                  />
+                  
+                  {loadingMappings ? (
+                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+                  ) : (
+                    <>
+                      <div className={`p-3 rounded-full mb-3 transition-colors ${
+                        isDraggingExcel ? 'bg-amber-500/20' : excelLoaded ? 'bg-green-500/20' : 'bg-zinc-800'
+                      }`}>
+                        <FileSpreadsheet className={`w-6 h-6 ${
+                          isDraggingExcel ? 'text-amber-500' : excelLoaded ? 'text-green-500' : 'text-zinc-500'
+                        }`} />
+                      </div>
+                      
+                      <p className="text-center text-zinc-400 text-sm">
+                        {excelLoaded 
+                          ? <span className="text-green-400">File Excel caricato</span>
+                          : isDraggingExcel 
+                            ? <span className="text-amber-400">Rilascia il file Excel</span>
+                            : <>Trascina il file Excel qui<br/>oppure <span className="text-amber-400">clicca per selezionare</span></>
+                        }
+                      </p>
+                      <p className="text-xs text-zinc-600 mt-2 font-mono">CODICI PRODOTTI.xlsx</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Image Upload Zone */}
               <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-transparent" />
                 
                 <h2 className="font-heading font-bold text-lg mb-4 flex items-center gap-2 relative">
                   <Upload className="w-5 h-5 text-blue-500" />
-                  Carica Immagini
+                  2. Carica Immagini
                 </h2>
 
                 <div
@@ -253,7 +376,8 @@ function App() {
                   className={`
                     relative border-2 border-dashed rounded-xl p-8
                     flex flex-col items-center justify-center cursor-pointer
-                    transition-all duration-300 min-h-[200px]
+                    transition-all duration-300 min-h-[180px]
+                    ${!excelLoaded ? 'opacity-50 cursor-not-allowed' : ''}
                     ${isDragging 
                       ? 'dropzone-active border-blue-500 bg-blue-500/10' 
                       : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/30 hover:bg-zinc-900/50'
@@ -266,7 +390,8 @@ function App() {
                     multiple
                     accept=".jpg,.jpeg,.png,.webp,image/*"
                     onChange={handleFileInput}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={!excelLoaded}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     data-testid="file-input"
                   />
                   
@@ -275,9 +400,11 @@ function App() {
                   </div>
                   
                   <p className="text-center text-zinc-400 text-sm">
-                    {isDragging 
-                      ? <span className="text-blue-400 font-medium">Rilascia i file qui</span>
-                      : <>Trascina le immagini qui<br/>oppure <span className="text-blue-400">clicca per selezionare</span></>
+                    {!excelLoaded 
+                      ? <span className="text-zinc-600">Carica prima il file Excel</span>
+                      : isDragging 
+                        ? <span className="text-blue-400 font-medium">Rilascia i file qui</span>
+                        : <>Trascina le immagini qui<br/>oppure <span className="text-blue-400">clicca per selezionare</span></>
                     }
                   </p>
                   <p className="text-xs text-zinc-600 mt-2 font-mono">JPG, JPEG, PNG, WEBP</p>
@@ -308,7 +435,7 @@ function App() {
                         </Button>
                       </div>
                       
-                      <ScrollArea className="max-h-[200px]">
+                      <ScrollArea className="max-h-[150px]">
                         <div className="space-y-2">
                           {files.map((file, index) => (
                             <motion.div
@@ -356,8 +483,8 @@ function App() {
               <div className="flex gap-3">
                 <Button
                   onClick={processImages}
-                  disabled={files.length === 0 || processing}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium neon-glow"
+                  disabled={files.length === 0 || processing || !excelLoaded}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium neon-glow disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="process-btn"
                 >
                   {processing ? (
@@ -463,66 +590,74 @@ function App() {
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
                   <Table2 className="w-5 h-5 text-amber-500" />
                   Mappatura Excel
-                  <span className="ml-2 text-xs font-mono bg-zinc-800 px-2 py-1 rounded text-zinc-400">
-                    {mappings.length} righe
-                  </span>
+                  {mappings.length > 0 && (
+                    <span className="ml-2 text-xs font-mono bg-zinc-800 px-2 py-1 rounded text-zinc-400">
+                      {mappings.length} righe
+                    </span>
+                  )}
                 </h2>
               </div>
 
-              {/* Search */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Cerca codice..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-white placeholder:text-zinc-600 rounded-lg px-4 py-2 font-mono text-sm transition-all duration-200 outline-none"
-                  data-testid="search-input"
-                />
-              </div>
-
-              {/* Table */}
-              {loadingMappings ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+              {!excelLoaded ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="p-4 bg-zinc-800 rounded-full mb-4">
+                    <FileSpreadsheet className="w-10 h-10 text-zinc-600" />
+                  </div>
+                  <p className="text-zinc-500 mb-2">Nessun file Excel caricato</p>
+                  <p className="text-xs text-zinc-600">Carica il file "CODICI PRODOTTI.xlsx" per vedere le mappature</p>
                 </div>
               ) : (
-                <ScrollArea className="h-[500px]" data-testid="mappings-table">
-                  <table className="w-full">
-                    <thead className="sticky top-0 bg-[#18181b] z-10">
-                      <tr>
-                        <th className="text-left text-xs font-mono text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-3 pl-3">
-                          Codice (Nome File)
-                        </th>
-                        <th className="text-left text-xs font-mono text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-3">
-                          Cod Prodotto (Nuovo Nome)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMappings.map((mapping, index) => (
-                        <tr 
-                          key={index}
-                          className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                        >
-                          <td className="py-3 text-sm font-mono text-zinc-300 pl-3">
-                            {mapping.codice}
-                          </td>
-                          <td className="py-3 text-sm font-mono text-blue-400">
-                            {mapping.cod_prodotto}
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredMappings.length === 0 && (
+                <>
+                  {/* Search */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Cerca codice..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-white placeholder:text-zinc-600 rounded-lg px-4 py-2 font-mono text-sm transition-all duration-200 outline-none"
+                      data-testid="search-input"
+                    />
+                  </div>
+
+                  {/* Table */}
+                  <ScrollArea className="h-[500px]" data-testid="mappings-table">
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-[#18181b] z-10">
                         <tr>
-                          <td colSpan={2} className="py-8 text-center text-zinc-500">
-                            {searchTerm ? 'Nessun risultato trovato' : 'Nessuna mappatura disponibile'}
-                          </td>
+                          <th className="text-left text-xs font-mono text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-3 pl-3">
+                            Codice (Nome File)
+                          </th>
+                          <th className="text-left text-xs font-mono text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-3">
+                            Cod Prodotto (Nuovo Nome)
+                          </th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </ScrollArea>
+                      </thead>
+                      <tbody>
+                        {filteredMappings.map((mapping, index) => (
+                          <tr 
+                            key={index}
+                            className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+                          >
+                            <td className="py-3 text-sm font-mono text-zinc-300 pl-3">
+                              {mapping.codice}
+                            </td>
+                            <td className="py-3 text-sm font-mono text-blue-400">
+                              {mapping.cod_prodotto}
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredMappings.length === 0 && (
+                          <tr>
+                            <td colSpan={2} className="py-8 text-center text-zinc-500">
+                              {searchTerm ? 'Nessun risultato trovato' : 'Nessuna mappatura disponibile'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                </>
               )}
             </motion.div>
           </div>
