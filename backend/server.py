@@ -858,10 +858,7 @@ async def download_batch_zip(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nell'elaborazione: {str(e)}")
 
-# Include the router in the main app
-app.include_router(api_router)
-
-# Plugin download endpoint
+# Plugin download endpoint (before including API router)
 @app.get("/borella-ricerca-immagini-plugin.zip")
 async def download_plugin():
     """Download endpoint for WordPress plugin"""
@@ -879,6 +876,9 @@ async def download_plugin():
             "Cache-Control": "no-cache"
         }
     )
+
+# Include the router in the main app
+app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
