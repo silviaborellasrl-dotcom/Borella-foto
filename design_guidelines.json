@@ -1,0 +1,145 @@
+{
+  "identity": {
+    "name": "E1",
+    "archetype": "Swiss & High-Contrast (Technical Variant)",
+    "vibe": "Precision, Speed, Industrial, Control Room",
+    "principles": [
+      "Fusion over Imitation: Mix Swiss Typography with Terminal Aesthetics",
+      "Emotion First: The user should feel like a 'Power User'",
+      "Content is King: Data legibility is paramount",
+      "Negative Space: Use density for data, space for structure",
+      "Contrast: High contrast for readability in dark mode"
+    ]
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Chivo",
+      "body": "Inter",
+      "mono": "JetBrains Mono"
+    },
+    "weights": {
+      "heading": "font-black",
+      "body": "font-normal",
+      "bold": "font-bold"
+    },
+    "sizes": {
+      "h1": "text-4xl md:text-6xl tracking-tighter",
+      "h2": "text-2xl md:text-4xl tracking-tight",
+      "body": "text-base leading-relaxed",
+      "mono": "text-sm md:text-base"
+    },
+    "installation": "Import fonts via Google Fonts in index.css: @import url('https://fonts.googleapis.com/css2?family=Chivo:wght@100..900&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap');"
+  },
+  "colors": {
+    "palette": {
+      "background": "#09090b",
+      "surface": "#18181b",
+      "surface_highlight": "#27272a",
+      "border": "#27272a",
+      "primary": "#3b82f6",
+      "primary_foreground": "#ffffff",
+      "secondary": "#f4f4f5",
+      "secondary_foreground": "#18181b",
+      "muted": "#71717a",
+      "accent": "#f59e0b",
+      "success": "#22c55e",
+      "error": "#ef4444"
+    },
+    "usage": {
+      "body_bg": "bg-[#09090b]",
+      "card_bg": "bg-[#18181b]",
+      "text_main": "text-white",
+      "text_muted": "text-zinc-400",
+      "border_default": "border-zinc-800"
+    }
+  },
+  "layout": {
+    "spacing": {
+      "container_padding": "p-6 md:p-12",
+      "section_gap": "gap-8 md:gap-16",
+      "element_gap": "gap-4"
+    },
+    "grid": {
+      "dashboard": "grid grid-cols-1 lg:grid-cols-12 gap-6",
+      "card_grid": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    },
+    "radius": {
+      "default": "rounded-none",
+      "button": "rounded-md",
+      "input": "rounded-md"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-white hover:bg-primary/90 shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all duration-200 font-medium px-6 py-2 rounded-md",
+      "secondary": "bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 transition-all duration-200 font-medium px-6 py-2 rounded-md",
+      "ghost": "bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-all duration-200 px-4 py-2 rounded-md"
+    },
+    "inputs": {
+      "default": "bg-zinc-900/50 border border-zinc-800 focus:border-primary focus:ring-1 focus:ring-primary text-white placeholder:text-zinc-600 rounded-md px-4 py-2 w-full transition-all duration-200 font-mono text-sm"
+    },
+    "cards": {
+      "default": "bg-[#18181b] border border-zinc-800 p-6 rounded-lg shadow-xl relative overflow-hidden group"
+    },
+    "uploader": {
+      "container": "border-2 border-dashed border-zinc-700 hover:border-primary/50 bg-zinc-900/20 hover:bg-zinc-900/40 transition-all duration-300 rounded-xl p-12 flex flex-col items-center justify-center cursor-pointer group relative overflow-hidden",
+      "active": "border-primary bg-primary/10 ring-4 ring-primary/20"
+    },
+    "table": {
+      "header": "text-xs font-mono text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-2",
+      "row": "border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors",
+      "cell": "py-3 text-sm font-mono text-zinc-300"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-black/40 border border-white/10",
+    "gradients": {
+      "subtle_glow": "bg-gradient-to-tr from-primary/20 via-transparent to-transparent",
+      "text_gradient": "bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400"
+    },
+    "textures": "bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none fixed inset-0 z-50",
+    "shadows": {
+      "neon": "shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-200 ease-out",
+    "hover_lift": "hover:-translate-y-1 hover:shadow-lg",
+    "animation_classes": {
+      "fade_in": "animate-in fade-in duration-500",
+      "slide_up": "animate-in slide-in-from-bottom-4 duration-500"
+    }
+  },
+  "image_urls": {
+    "backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1737505598998-693328b57ae3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBnZW9tZXRyaWMlMjB0ZWNobm9sb2d5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NjU5ODE5MDB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract dark geometric blocks",
+        "category": "hero_bg"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1759159347827-de3a54002de7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRhcmslMjBnZW9tZXRyaWMlMjB0ZWNobm9sb2d5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NjU5ODE5MDB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Dark cubes with glowing green lines",
+        "category": "feature_bg"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. SETUP: Install 'lucide-react', 'clsx', 'tailwind-merge', 'framer-motion', 'sonner' immediately.",
+    "2. FONTS: Add the Google Fonts import to index.css FIRST.",
+    "3. THEME: Force Dark Mode. Add 'dark' class to the html or body tag, or set background to #09090b in index.css.",
+    "4. LAYOUT: Use a 'Bento' style grid. Left side: Controls (Excel URL, Upload). Right side: Live Data Feed (The Table).",
+    "5. FEEDBACK: Use 'Sonner' for all toasts (Success/Error).",
+    "6. TABLE: The mapping table is the hero. Make it look like a code editor diff view. Use JetBrains Mono.",
+    "7. UPLOAD: The dropzone should feel 'magnetic'. Use hover states and dashed borders that glow on dragOver.",
+    "8. NOISE: Add a fixed noise overlay (opacity 0.03) to the entire body to kill the digital flatness.",
+    "9. ACCESSIBILITY: Ensure all inputs have labels (even if visually hidden) and high contrast focus rings."
+  ],
+  "universal_guidelines": [
+    "Do not use generic centered layouts.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Every interaction needs micro-animations.",
+    "Use specific properties for transitions (NOT transition: all).",
+    "All interactive elements MUST include data-testid attribute."
+  ]
+}
