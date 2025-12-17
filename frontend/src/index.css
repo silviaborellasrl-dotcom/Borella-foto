@@ -1,35 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Chivo:wght@100..900&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 38 92% 50%;
-    --accent-foreground: 0 0% 9%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 217 91% 60%;
-    --radius: 0.5rem;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.75rem;
 }
 
 * {
@@ -44,31 +39,11 @@ html {
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #09090b;
-    color: #fafafa;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    color: #1e293b;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
-}
-
-/* Font Classes */
-.font-heading {
-    font-family: 'Chivo', sans-serif;
-}
-
-.font-mono {
-    font-family: 'JetBrains Mono', monospace;
-}
-
-/* Noise Texture Overlay */
-.noise-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    pointer-events: none;
-    opacity: 0.03;
-    background-image: url('https://grainy-gradients.vercel.app/noise.svg');
-    mix-blend-mode: overlay;
 }
 
 /* Custom Scrollbar */
@@ -78,16 +53,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #18181b;
+    background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
+    background: #cbd5e1;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #52525b;
+    background: #94a3b8;
 }
 
 /* Animations */
@@ -107,12 +82,12 @@ body {
     }
 }
 
-@keyframes pulse-glow {
+@keyframes pulse-soft {
     0%, 100% {
-        box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
     }
     50% {
-        box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.5);
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
     }
 }
 
@@ -124,31 +99,15 @@ body {
     animation: slideUp 0.5s ease-out;
 }
 
-.animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* Glass effect */
-.glass {
-    backdrop-filter: blur(16px);
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Neon glow effect */
-.neon-glow {
-    box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3);
-}
-
-.neon-glow:hover {
-    box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.5);
+.animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
 }
 
 /* Drop zone styles */
 .dropzone-active {
     border-color: #3b82f6 !important;
-    background-color: rgba(59, 130, 246, 0.1) !important;
-    box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.3);
+    background-color: rgba(59, 130, 246, 0.08) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 @layer base {
@@ -157,11 +116,5 @@ body {
     }
     body {
         @apply bg-background text-foreground;
-    }
-}
-
-@layer base {
-    [data-debug-wrapper="true"] {
-        display: contents !important;
     }
 }

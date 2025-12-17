@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 import uuid
 from datetime import datetime, timezone
@@ -14,6 +14,7 @@ import httpx
 from openpyxl import load_workbook
 from io import BytesIO
 import zipfile
+import base64
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -36,6 +37,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Excel URL
+EXCEL_URL = "https://www.borellacasalinghi.it/foto-prodotti/cartella-immagini/CODICI%20PRODOTTI.xlsx"
+
 # Define Models
 class ExcelMapping(BaseModel):
     codice: str
@@ -51,25 +55,43 @@ class RenameResult(BaseModel):
     status: str
     message: Optional[str] = None
 
-# In-memory cache for Excel mappings (per session)
+# In-memory cache for Excel mappings
 excel_cache: Dict[str, str] = {}
-cache_session_id: Optional[str] = None
+cache_timestamp: Optional[datetime] = None
 
-@api_router.get("/")
-async def root():
-    return {"message": "Photo Renamer API"}
-
-@api_router.post("/upload-excel", response_model=ExcelMappingResponse)
-async def upload_excel(file: UploadFile = File(...)):
-    """Upload and parse Excel file"""
-    global excel_cache, cache_session_id
+async def fetch_excel_from_url() -> Dict[str, str]:
+    """Fetch and parse Excel file from remote URL"""
+    global excel_cache, cache_timestamp
     
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Il file deve essere un Excel (.xlsx o .xls)")
+    # Use cache if available and less than 10 minutes old
+    if cache_timestamp and excel_cache:
+        age = (datetime.now(timezone.utc) - cache_timestamp).total_seconds()
+        if age < 600:  # 10 minutes
+            return excel_cache
+    
+    # Check database first
+    cursor = db.excel_mappings.find({}, {"_id": 0})
+    docs = await cursor.to_list(10000)
+    if docs:
+        excel_cache = {doc["codice"]: doc["cod_prodotto"] for doc in docs}
+        cache_timestamp = datetime.now(timezone.utc)
+        return excel_cache
+    
+    # Try to fetch from URL with browser-like headers
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,*/*",
+        "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://www.borellacasalinghi.it/",
+    }
     
     try:
-        content = await file.read()
-        wb = load_workbook(filename=BytesIO(content), read_only=True)
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http_client:
+            response = await http_client.get(EXCEL_URL, headers=headers)
+            response.raise_for_status()
+            
+        # Load workbook from bytes
+        wb = load_workbook(filename=BytesIO(response.content), read_only=True)
         ws = wb.active
         
         mappings = {}
@@ -82,78 +104,58 @@ async def upload_excel(file: UploadFile = File(...)):
         
         wb.close()
         
-        excel_cache = mappings
-        cache_session_id = str(uuid.uuid4())
-        
-        # Save to MongoDB for persistence
-        await db.excel_mappings.delete_many({})
+        # Save to database for persistence
         if mappings:
+            await db.excel_mappings.delete_many({})
             docs = [{"codice": k, "cod_prodotto": v} for k, v in mappings.items()]
             await db.excel_mappings.insert_many(docs)
         
-        logger.info(f"Loaded {len(mappings)} mappings from Excel")
+        excel_cache = mappings
+        cache_timestamp = datetime.now(timezone.utc)
         
-        mapping_list = [
-            ExcelMapping(codice=k, cod_prodotto=v) 
-            for k, v in mappings.items()
-        ]
-        
-        return ExcelMappingResponse(
-            mappings=mapping_list,
-            total=len(mapping_list)
-        )
+        logger.info(f"Loaded {len(mappings)} mappings from Excel URL")
+        return mappings
         
     except Exception as e:
-        logger.error(f"Error parsing Excel file: {e}")
-        raise HTTPException(status_code=500, detail=f"Errore nel parsing del file Excel: {str(e)}")
+        logger.error(f"Error fetching Excel file: {e}")
+        # Return empty if no cached data
+        return excel_cache if excel_cache else {}
+
+@api_router.get("/")
+async def root():
+    return {"message": "Photo Renamer API"}
 
 @api_router.get("/excel-mapping", response_model=ExcelMappingResponse)
-async def get_excel_mappings():
-    """Get current mappings from cache or database"""
-    global excel_cache
+async def get_excel_mappings(refresh: bool = False):
+    """Get mappings from Excel file"""
+    global excel_cache, cache_timestamp
     
-    # Try cache first
-    if excel_cache:
-        mapping_list = [
-            ExcelMapping(codice=k, cod_prodotto=v) 
-            for k, v in excel_cache.items()
-        ]
-        return ExcelMappingResponse(
-            mappings=mapping_list,
-            total=len(mapping_list)
-        )
+    if refresh:
+        cache_timestamp = None
+        excel_cache = {}
+        await db.excel_mappings.delete_many({})
     
-    # Try database
-    cursor = db.excel_mappings.find({}, {"_id": 0})
-    docs = await cursor.to_list(10000)
+    mappings = await fetch_excel_from_url()
     
-    if docs:
-        excel_cache = {doc["codice"]: doc["cod_prodotto"] for doc in docs}
-        mapping_list = [
-            ExcelMapping(codice=doc["codice"], cod_prodotto=doc["cod_prodotto"]) 
-            for doc in docs
-        ]
-        return ExcelMappingResponse(
-            mappings=mapping_list,
-            total=len(mapping_list)
-        )
+    mapping_list = [
+        ExcelMapping(codice=k, cod_prodotto=v) 
+        for k, v in mappings.items()
+    ]
     
-    return ExcelMappingResponse(mappings=[], total=0)
+    return ExcelMappingResponse(
+        mappings=mapping_list,
+        total=len(mapping_list)
+    )
 
 @api_router.post("/process-images")
 async def process_images(files: List[UploadFile] = File(...)):
     """Process uploaded images and create ZIP with renamed files"""
-    global excel_cache
     
-    # Get mappings from cache or database
-    if not excel_cache:
-        cursor = db.excel_mappings.find({}, {"_id": 0})
-        docs = await cursor.to_list(10000)
-        if docs:
-            excel_cache = {doc["codice"]: doc["cod_prodotto"] for doc in docs}
+    # Get mappings
+    mappings = await fetch_excel_from_url()
     
-    if not excel_cache:
-        raise HTTPException(status_code=400, detail="Nessuna mappatura Excel caricata. Carica prima il file Excel.")
+    if not mappings:
+        raise HTTPException(status_code=400, detail="Nessuna mappatura Excel disponibile. Controlla la connessione al file Excel.")
     
     results: List[RenameResult] = []
     renamed_files: List[tuple] = []  # (new_name, content)
@@ -166,8 +168,8 @@ async def process_images(files: List[UploadFile] = File(...)):
         extension = name_parts[1].lower() if len(name_parts) > 1 else ''
         
         # Check if base name exists in mappings
-        if base_name in excel_cache:
-            new_base_name = excel_cache[base_name]
+        if base_name in mappings:
+            new_base_name = mappings[base_name]
             new_name = f"{new_base_name}.{extension}" if extension else new_base_name
             
             # Read file content
@@ -195,8 +197,6 @@ async def process_images(files: List[UploadFile] = File(...)):
     session_id = None
     if renamed_files:
         session_id = str(uuid.uuid4())
-        # Store files as base64 to avoid binary issues
-        import base64
         files_data = [(name, base64.b64encode(content).decode('utf-8')) for name, content in renamed_files]
         
         await db.temp_files.insert_one({
@@ -216,7 +216,6 @@ async def process_images(files: List[UploadFile] = File(...)):
 @api_router.get("/download-zip/{session_id}")
 async def download_zip(session_id: str):
     """Download ZIP file with renamed images"""
-    import base64
     
     # Get files from MongoDB
     session_data = await db.temp_files.find_one({"session_id": session_id}, {"_id": 0})
@@ -248,14 +247,6 @@ async def download_zip(session_id: str):
             "Content-Disposition": f"attachment; filename=foto_rinominate_{session_id[:8]}.zip"
         }
     )
-
-@api_router.delete("/clear-mappings")
-async def clear_mappings():
-    """Clear all mappings"""
-    global excel_cache
-    excel_cache = {}
-    await db.excel_mappings.delete_many({})
-    return {"message": "Mappature cancellate"}
 
 # Include the router in the main app
 app.include_router(api_router)
