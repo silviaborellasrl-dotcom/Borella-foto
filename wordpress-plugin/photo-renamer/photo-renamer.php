@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Photo Renamer
  * Plugin URI: https://www.borellacasalinghi.it
- * Description: Rinomina automaticamente le foto prendendo i dati dal file Excel CODICI PRODOTTI.xlsx
- * Version: 1.0.0
+ * Description: Rinomina automaticamente le foto prendendo i dati dal file Excel CODICI PRODOTTI.xlsx. Usa lo shortcode [photo_renamer] per integrare in qualsiasi pagina.
+ * Version: 1.1.0
  * Author: Borella Casalinghi
  * License: GPL v2 or later
  * Text Domain: photo-renamer
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('PHOTO_RENAMER_VERSION', '1.0.0');
+define('PHOTO_RENAMER_VERSION', '1.1.0');
 define('PHOTO_RENAMER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PHOTO_RENAMER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PHOTO_RENAMER_EXCEL_URL', 'https://www.borellacasalinghi.it/foto-prodotti/cartella-immagini/CODICI%20PRODOTTI.xlsx');
@@ -24,11 +24,16 @@ define('PHOTO_RENAMER_EXCEL_URL', 'https://www.borellacasalinghi.it/foto-prodott
 require_once PHOTO_RENAMER_PLUGIN_DIR . 'includes/class-photo-renamer.php';
 require_once PHOTO_RENAMER_PLUGIN_DIR . 'includes/class-excel-parser.php';
 require_once PHOTO_RENAMER_PLUGIN_DIR . 'includes/class-ajax-handler.php';
+require_once PHOTO_RENAMER_PLUGIN_DIR . 'includes/class-shortcode.php';
 
 // Initialize the plugin
 function photo_renamer_init() {
     $plugin = new Photo_Renamer();
     $plugin->init();
+    
+    // Initialize shortcode
+    $shortcode = new Photo_Renamer_Shortcode();
+    $shortcode->init();
 }
 add_action('plugins_loaded', 'photo_renamer_init');
 
