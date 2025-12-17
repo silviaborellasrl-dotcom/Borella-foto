@@ -1,10 +1,9 @@
 import requests
 import sys
-import os
-from datetime import datetime
-import tempfile
-from openpyxl import Workbook
+import json
 import io
+from datetime import datetime
+from PIL import Image
 
 class PhotoRenamerAPITester:
     def __init__(self, base_url="https://excel-to-filename.preview.emergentagent.com"):
