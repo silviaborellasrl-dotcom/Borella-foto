@@ -37,8 +37,16 @@ Creare un sistema che possa rinominare le foto in automatico prendendo i dati da
 3. Sistema abbina nome file con CODICE → rinomina con COD PRODOTTO
 4. Genera ZIP con foto rinominate → download
 
+## Funzionalità Implementate
+- ✅ Controllo automatico aggiornamenti Excel all'avvio
+- ✅ Verifica hash MD5 per rilevare modifiche al file
+- ✅ Pulsante "Controlla Aggiornamenti" per verifica manuale
+- ✅ Visualizzazione data/ora ultimo aggiornamento
+- ✅ Cache intelligente delle mappature in MongoDB
+
 ## Prossimi Miglioramenti Suggeriti
 1. **Cronologia elaborazioni**: Salvare le elaborazioni per consultazione futura
 2. **Preview immagini**: Mostrare anteprima delle foto prima dell'elaborazione
 3. **Batch processing**: Gestire grandi quantità di foto con progress dettagliato
 4. **Report PDF**: Generare report delle rinominazioni effettuate
+5. **Notifica automatica**: Alert quando vengono rilevati nuovi codici nel file Excel
