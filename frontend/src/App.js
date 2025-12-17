@@ -14,7 +14,9 @@ import {
   Table2,
   Zap,
   Trash2,
-  Search
+  Search,
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -33,15 +35,22 @@ function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [excelStatus, setExcelStatus] = useState(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   // Fetch Excel mappings on load
   const fetchMappings = useCallback(async (refresh = false) => {
     setLoadingMappings(true);
     try {
       const response = await axios.get(`${API}/excel-mapping`, {
-        params: { refresh }
+        params: { refresh, check_update: true }
       });
       setMappings(response.data.mappings);
+      setExcelStatus({
+        total: response.data.total,
+        lastUpdated: response.data.last_updated,
+        fileHash: response.data.file_hash
+      });
       if (response.data.total > 0) {
         toast.success(`${response.data.total} mappature caricate`);
       }
@@ -53,9 +62,49 @@ function App() {
     }
   }, []);
 
+  // Check for Excel updates
+  const checkForUpdates = useCallback(async () => {
+    setCheckingUpdate(true);
+    try {
+      const response = await axios.post(`${API}/check-excel-update`);
+      
+      if (response.data.updated) {
+        toast.success(response.data.message);
+        // Reload mappings
+        await fetchMappings(false);
+      } else if (response.data.error) {
+        toast.error(response.data.message);
+      } else {
+        toast.info(response.data.message);
+      }
+    } catch (error) {
+      console.error("Error checking updates:", error);
+      toast.error("Errore nel controllo aggiornamenti");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }, [fetchMappings]);
+
   useEffect(() => {
     fetchMappings();
   }, [fetchMappings]);
+
+  // Format date for display
+  const formatDate = (isoString) => {
+    if (!isoString) return "N/A";
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return "N/A";
+    }
+  };
 
   // Handle drag events
   const handleDragOver = useCallback((e) => {
@@ -227,13 +276,13 @@ function App() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchMappings(true)}
-              disabled={loadingMappings}
+              onClick={checkForUpdates}
+              disabled={checkingUpdate || loadingMappings}
               className="border-slate-200 hover:bg-slate-50"
-              data-testid="refresh-mappings-btn"
+              data-testid="check-update-btn"
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loadingMappings ? 'animate-spin' : ''}`} />
-              Aggiorna
+              <RefreshCw className={`w-4 h-4 mr-2 ${checkingUpdate ? 'animate-spin' : ''}`} />
+              Controlla Aggiornamenti
             </Button>
           </div>
         </div>
@@ -481,7 +530,7 @@ function App() {
               transition={{ delay: 0.1 }}
               className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 h-full"
             >
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-lg text-slate-800 flex items-center gap-2">
                   <div className="p-1.5 bg-amber-100 rounded-lg">
                     <Table2 className="w-4 h-4 text-amber-600" />
@@ -494,6 +543,23 @@ function App() {
                   )}
                 </h2>
               </div>
+
+              {/* Excel Status Info */}
+              {excelStatus && (
+                <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-slate-600">
+                      <Clock className="w-4 h-4" />
+                      <span>Ultimo aggiornamento: {formatDate(excelStatus.lastUpdated)}</span>
+                    </div>
+                  </div>
+                  {excelStatus.fileHash && (
+                    <div className="text-xs text-slate-400 font-mono">
+                      Hash: {excelStatus.fileHash?.substring(0, 8)}...
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Search */}
               <div className="mb-5 relative">
@@ -516,14 +582,23 @@ function App() {
                 </div>
               ) : mappings.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="p-4 bg-slate-100 rounded-2xl mb-4">
-                    <Table2 className="w-10 h-10 text-slate-400" />
+                  <div className="p-4 bg-amber-50 rounded-2xl mb-4">
+                    <AlertCircle className="w-10 h-10 text-amber-500" />
                   </div>
                   <p className="text-slate-600 font-medium mb-2">Nessuna mappatura disponibile</p>
-                  <p className="text-sm text-slate-400">Il file Excel non è ancora stato caricato</p>
+                  <p className="text-sm text-slate-400">Impossibile caricare il file Excel</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchMappings(true)}
+                    className="mt-4"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Riprova
+                  </Button>
                 </div>
               ) : (
-                <ScrollArea className="h-[480px]" data-testid="mappings-table">
+                <ScrollArea className="h-[420px]" data-testid="mappings-table">
                   <table className="w-full">
                     <thead className="sticky top-0 bg-white z-10">
                       <tr>
