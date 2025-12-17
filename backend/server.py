@@ -861,6 +861,25 @@ async def download_batch_zip(file: UploadFile = File(...)):
 # Include the router in the main app
 app.include_router(api_router)
 
+# Plugin download endpoint
+@app.get("/borella-ricerca-immagini-plugin.zip")
+async def download_plugin():
+    """Download endpoint for WordPress plugin"""
+    plugin_path = "/app/backend/borella-ricerca-immagini-plugin-v1.2.0.zip"
+    
+    if not os.path.exists(plugin_path):
+        raise HTTPException(status_code=404, detail="Plugin file not found")
+    
+    return FileResponse(
+        path=plugin_path,
+        filename="borella-ricerca-immagini-plugin.zip",
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=borella-ricerca-immagini-plugin.zip",
+            "Cache-Control": "no-cache"
+        }
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
