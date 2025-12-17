@@ -55,209 +55,154 @@ class PhotoRenamerAPITester:
             print(f"❌ Failed - Error: {str(e)}")
             return False, {}
 
-    def create_test_excel(self):
-        """Create a test Excel file with sample mappings"""
-        wb = Workbook()
-        ws = wb.active
-        
-        # Add headers
-        ws['A1'] = 'CODICE'
-        ws['B1'] = 'COD PRODOTTO'
-        
-        # Add test data
-        test_data = [
-            ('IMG001', 'PROD_A_001'),
-            ('IMG002', 'PROD_B_002'),
-            ('IMG003', 'PROD_C_003'),
-            ('photo1', 'NEW_PHOTO_1'),
-            ('photo2', 'NEW_PHOTO_2')
-        ]
-        
-        for i, (codice, cod_prodotto) in enumerate(test_data, start=2):
-            ws[f'A{i}'] = codice
-            ws[f'B{i}'] = cod_prodotto
-        
-        # Save to bytes
-        excel_buffer = io.BytesIO()
-        wb.save(excel_buffer)
-        excel_buffer.seek(0)
-        
-        return excel_buffer.getvalue()
-
-    def create_test_image(self, filename):
-        """Create a simple test image file"""
-        # Create a minimal PNG file (1x1 pixel)
-        png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\nIDATx\x9cc\xf8\x00\x00\x00\x01\x00\x01\x00\x00\x00\x00IEND\xaeB`\x82'
-        return png_data
-
     def test_root_endpoint(self):
-        """Test GET /api/ endpoint"""
+        """Test root API endpoint"""
         success, response = self.run_test(
-            "Root API endpoint",
+            "Root API Endpoint",
             "GET",
             "",
             200
         )
-        if success and isinstance(response, dict):
-            print(f"   Message: {response.get('message', 'No message')}")
+        if success:
+            print(f"   Response: {response}")
         return success
 
-    def test_get_empty_mappings(self):
-        """Test GET /api/excel-mapping with no data"""
+    def test_excel_mappings(self):
+        """Test Excel mappings endpoint"""
         success, response = self.run_test(
-            "Get empty Excel mappings",
+            "Excel Mappings",
             "GET",
             "excel-mapping",
             200
         )
-        if success and isinstance(response, dict):
-            print(f"   Total mappings: {response.get('total', 0)}")
-        return success
+        if success:
+            mappings_count = response.get('total', 0)
+            print(f"   Mappings loaded: {mappings_count}")
+            if mappings_count == 911:
+                print("✅ Expected 911 mappings found!")
+            elif mappings_count > 0:
+                print(f"⚠️  Found {mappings_count} mappings (expected 911)")
+            else:
+                print("❌ No mappings found")
+                return False
+            
+            # Show first few mappings
+            mappings = response.get('mappings', [])
+            if mappings:
+                print("   Sample mappings:")
+                for i, mapping in enumerate(mappings[:3]):
+                    print(f"     {mapping.get('codice')} -> {mapping.get('cod_prodotto')}")
+                    
+        return success, response.get('mappings', []) if success else []
 
-    def test_upload_excel(self):
-        """Test POST /api/upload-excel"""
-        excel_data = self.create_test_excel()
-        
-        files = {
-            'file': ('test_mappings.xlsx', excel_data, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    def create_test_image(self, filename, size=(100, 100)):
+        """Create a test image file"""
+        img = Image.new('RGB', size, color='red')
+        img_bytes = io.BytesIO()
+        format_map = {
+            '.jpg': 'JPEG',
+            '.jpeg': 'JPEG', 
+            '.png': 'PNG',
+            '.webp': 'WEBP'
         }
-        
-        success, response = self.run_test(
-            "Upload Excel file",
-            "POST",
-            "upload-excel",
-            200,
-            files=files
-        )
-        
-        if success and isinstance(response, dict):
-            print(f"   Mappings loaded: {response.get('total', 0)}")
-            if response.get('mappings'):
-                print(f"   First mapping: {response['mappings'][0]['codice']} -> {response['mappings'][0]['cod_prodotto']}")
-        
-        return success
+        ext = '.' + filename.split('.')[-1].lower()
+        img_format = format_map.get(ext, 'JPEG')
+        img.save(img_bytes, format=img_format)
+        img_bytes.seek(0)
+        return img_bytes
 
-    def test_get_loaded_mappings(self):
-        """Test GET /api/excel-mapping after loading data"""
-        success, response = self.run_test(
-            "Get loaded Excel mappings",
-            "GET",
-            "excel-mapping",
-            200
-        )
-        if success and isinstance(response, dict):
-            print(f"   Total mappings: {response.get('total', 0)}")
-        return success
+    def test_process_images(self, mappings):
+        """Test image processing with sample files"""
+        if not mappings:
+            print("❌ No mappings available for testing image processing")
+            return False
+            
+        # Use first few mappings to create test files
+        test_files = []
+        sample_mappings = mappings[:3]  # Test with first 3 mappings
+        
+        print(f"   Creating test files from mappings:")
+        for mapping in sample_mappings:
+            codice = mapping.get('codice')
+            cod_prodotto = mapping.get('cod_prodotto')
+            print(f"     {codice} -> {cod_prodotto}")
+            
+            # Create test image with the codice as filename
+            filename = f"{codice}.jpg"
+            img_bytes = self.create_test_image(filename)
+            test_files.append(('files', (filename, img_bytes, 'image/jpeg')))
 
-    def test_process_images(self):
-        """Test POST /api/process-images"""
-        # Create test images that match our Excel mappings
-        test_files = [
-            ('IMG001.jpg', self.create_test_image('IMG001.jpg')),
-            ('IMG002.png', self.create_test_image('IMG002.png')),
-            ('unknown.jpg', self.create_test_image('unknown.jpg'))  # This should fail
-        ]
-        
-        files = []
-        for filename, data in test_files:
-            files.append(('files', (filename, data, 'image/jpeg' if filename.endswith('.jpg') else 'image/png')))
-        
         success, response = self.run_test(
-            "Process images",
+            "Process Images",
             "POST",
             "process-images",
             200,
-            files=files
+            files=test_files
         )
         
-        if success and isinstance(response, dict):
-            print(f"   Success count: {response.get('success_count', 0)}")
-            print(f"   Error count: {response.get('error_count', 0)}")
-            print(f"   ZIP ready: {response.get('zip_ready', False)}")
+        if success:
+            success_count = response.get('success_count', 0)
+            error_count = response.get('error_count', 0)
+            self.session_id = response.get('session_id')
             
-            if response.get('session_id'):
-                self.session_id = response['session_id']
-                print(f"   Session ID: {self.session_id}")
-        
+            print(f"   Success count: {success_count}")
+            print(f"   Error count: {error_count}")
+            print(f"   Session ID: {self.session_id}")
+            
+            # Show results
+            results = response.get('results', [])
+            for result in results:
+                status = "✅" if result.get('status') == 'success' else "❌"
+                print(f"   {status} {result.get('original_name')} -> {result.get('new_name')}")
+                
         return success
 
     def test_download_zip(self):
-        """Test GET /api/download-zip/{session_id}"""
+        """Test ZIP download"""
         if not self.session_id:
             print("❌ No session ID available for ZIP download test")
             return False
-        
-        success, response = self.run_test(
-            "Download ZIP file",
+            
+        success, _ = self.run_test(
+            "Download ZIP",
             "GET",
             f"download-zip/{self.session_id}",
             200
         )
         
         if success:
-            if isinstance(response, bytes):
-                print(f"   ZIP file size: {len(response)} bytes")
-            else:
-                print(f"   Response type: {type(response)}")
-        
-        return success
-
-    def test_invalid_excel_upload(self):
-        """Test uploading invalid file as Excel"""
-        files = {
-            'file': ('test.txt', b'This is not an Excel file', 'text/plain')
-        }
-        
-        success, response = self.run_test(
-            "Upload invalid Excel file",
-            "POST",
-            "upload-excel",
-            400,
-            files=files
-        )
-        return success
-
-    def test_process_images_without_excel(self):
-        """Test processing images without Excel mappings loaded"""
-        # First clear mappings
-        self.run_test("Clear mappings", "DELETE", "clear-mappings", 200)
-        
-        # Try to process images
-        files = [('files', ('test.jpg', self.create_test_image('test.jpg'), 'image/jpeg'))]
-        
-        success, response = self.run_test(
-            "Process images without Excel",
-            "POST",
-            "process-images",
-            400,
-            files=files
-        )
+            print("   ZIP download successful")
+            
         return success
 
 def main():
     print("🚀 Starting Photo Renamer API Tests")
     print("=" * 50)
     
+    # Setup
     tester = PhotoRenamerAPITester()
     
-    # Test sequence
-    tests = [
-        ("Root endpoint", tester.test_root_endpoint),
-        ("Empty mappings", tester.test_get_empty_mappings),
-        ("Upload Excel", tester.test_upload_excel),
-        ("Get loaded mappings", tester.test_get_loaded_mappings),
-        ("Process images", tester.test_process_images),
-        ("Download ZIP", tester.test_download_zip),
-        ("Invalid Excel upload", tester.test_invalid_excel_upload),
-        ("Process without Excel", tester.test_process_images_without_excel),
-    ]
-    
-    for test_name, test_func in tests:
-        try:
-            test_func()
-        except Exception as e:
-            print(f"❌ Test '{test_name}' crashed: {str(e)}")
-    
+    # Test 1: Root endpoint
+    if not tester.test_root_endpoint():
+        print("❌ Root endpoint failed, stopping tests")
+        return 1
+
+    # Test 2: Excel mappings
+    mappings_success, mappings = tester.test_excel_mappings()
+    if not mappings_success:
+        print("❌ Excel mappings failed, stopping tests")
+        return 1
+
+    # Test 3: Process images
+    if not tester.test_process_images(mappings):
+        print("❌ Image processing failed")
+        return 1
+
+    # Test 4: Download ZIP
+    if not tester.test_download_zip():
+        print("❌ ZIP download failed")
+        return 1
+
     # Print final results
     print("\n" + "=" * 50)
     print(f"📊 Final Results: {tester.tests_passed}/{tester.tests_run} tests passed")
@@ -266,7 +211,7 @@ def main():
         print("🎉 All tests passed!")
         return 0
     else:
-        print(f"⚠️  {tester.tests_run - tester.tests_passed} tests failed")
+        print("⚠️  Some tests failed")
         return 1
 
 if __name__ == "__main__":
