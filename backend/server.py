@@ -859,10 +859,10 @@ async def download_batch_zip(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nell'elaborazione: {str(e)}")
 
-# Plugin download endpoint added to API router
+# Plugin download endpoints
 @api_router.get("/download-plugin")
 async def download_plugin():
-    """Download endpoint for WordPress plugin"""
+    """Download endpoint for WordPress plugin (legacy version)"""
     plugin_path = "/app/backend/borella-ricerca-immagini-plugin-v1.2.0.zip"
     
     if not os.path.exists(plugin_path):
@@ -874,6 +874,24 @@ async def download_plugin():
         media_type="application/zip",
         headers={
             "Content-Disposition": "attachment; filename=borella-ricerca-immagini-plugin.zip",
+            "Cache-Control": "no-cache"
+        }
+    )
+
+@api_router.get("/download-plugin-autonomo")
+async def download_plugin_autonomo():
+    """Download endpoint for WordPress autonomous plugin (v2.0.0)"""
+    plugin_path = "/app/backend/borella-ricerca-autonomo-v2.0.0.zip"
+    
+    if not os.path.exists(plugin_path):
+        raise HTTPException(status_code=404, detail="Plugin file not found")
+    
+    return FileResponse(
+        path=plugin_path,
+        filename="borella-ricerca-autonomo-v2.0.0.zip",
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=borella-ricerca-autonomo-v2.0.0.zip",
             "Cache-Control": "no-cache"
         }
     )
